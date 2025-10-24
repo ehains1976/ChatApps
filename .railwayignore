@@ -1,0 +1,7 @@
+src/
+public/
+tsconfig*.json
+vite.config.ts
+eslint.config.js
+*.tsx
+*.ts
