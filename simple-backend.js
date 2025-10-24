@@ -4,7 +4,7 @@ import url from 'url';
 import fs from 'fs';
 import path from 'path';
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Données simulées
 const projects = [
