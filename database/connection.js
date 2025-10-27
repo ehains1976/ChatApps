@@ -4,6 +4,10 @@ const { Pool } = pkg;
 
 // Fonction pour construire l'URL de connexion avec plusieurs méthodes
 function getConnectionString() {
+  // DEBUG: Afficher toutes les variables PostgreSQL disponibles
+  const pgVars = Object.keys(process.env).filter(k => k.includes('PG') || k.includes('POSTGRES') || k.includes('DATABASE'));
+  console.log('🔍 Variables PostgreSQL disponibles:', pgVars.join(', ') || 'AUCUNE');
+  
   // Méthode 1: Railway variables automatiques (PG*) - PRIORITÉ
   if (process.env.PGHOST) {
     const host = process.env.PGHOST;
@@ -30,9 +34,9 @@ function getConnectionString() {
     return url;
   }
   
-  // Méthode 3: DATABASE_URL directe
-  if (process.env.DATABASE_URL) {
-    console.log('📡 Utilisation de DATABASE_URL');
+  // Méthode 3: DATABASE_URL directe (IGNORER railway.internal)
+  if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('railway.internal')) {
+    console.log('📡 Utilisation de DATABASE_URL (externe)');
     return process.env.DATABASE_URL;
   }
   
@@ -43,7 +47,7 @@ function getConnectionString() {
   }
   
   console.error('⚠️ Aucune variable de connexion PostgreSQL trouvée');
-  console.error('Variables disponibles:', Object.keys(process.env).filter(k => k.includes('PG') || k.includes('POSTGRES') || k.includes('DATABASE')).join(', '));
+  console.error('DATABASE_URL actuelle contient railway.internal, ce qui ne fonctionne pas');
   return null;
 }
 
