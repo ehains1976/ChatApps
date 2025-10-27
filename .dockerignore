@@ -1,0 +1,13 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+.vscode
+.idea
+*.log
+calendrier.html
+calendar.html
+index-old.html
+dist-ssr
+

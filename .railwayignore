@@ -1,8 +1,19 @@
-src/
-public/
-tsconfig*.json
-vite.config.ts
-eslint.config.js
-*.tsx
-*.ts
+node_modules/
+.git/
+dist-ssr/
+*.log
+.env
+.env.local
+.vscode/
+.idea/
+.DS_Store
 
+# Fichiers de développement
+calendrier.html
+calendar.html
+index-old.html
+
+# Fichiers temporaires
+*.swp
+*.swo
+*~
