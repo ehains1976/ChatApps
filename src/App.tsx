@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import Dashboard from './components/Dashboard';
+import DashboardPage from './pages/DashboardPage';
+import TasksPage from './pages/TasksPage';
+import UsersPage from './pages/UsersPage';
+import ProjectsPage from './pages/ProjectsPage';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Calendar from './components/Calendar';
@@ -12,26 +15,32 @@ function App() {
     switch (currentPage) {
       case 'calendar':
         return <Calendar />;
+      case 'tasks':
+        return <TasksPage />;
+      case 'projects':
+        return <ProjectsPage />;
+      case 'team':
+        return <UsersPage />;
       case 'dashboard':
       default:
-        return <Dashboard />;
+        return <DashboardPage />;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <div className="flex h-screen">
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)', color: '#0f172a' }}>
+      <div style={{ display: 'flex', height: '100vh' }}>
         {/* Sidebar */}
         <Sidebar onNavigate={setCurrentPage} currentPage={currentPage} />
         
         {/* Main Content */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header */}
           <Header />
           
           {/* Page Content */}
           <motion.main 
-            className="flex-1 overflow-auto p-6"
+            style={{ flex: 1, overflow: 'auto', padding: '1.5rem' }}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}

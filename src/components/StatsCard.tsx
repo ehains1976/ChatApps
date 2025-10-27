@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { LucideIcon, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import Card from './ui/Card';
 
 interface StatsCardProps {
@@ -8,7 +8,7 @@ interface StatsCardProps {
   value: string | number;
   change?: string;
   trend?: 'up' | 'down' | 'neutral';
-  icon: LucideIcon;
+  icon: React.ComponentType<{ className?: string }>;
   color: string;
   bgColor: string;
   borderColor: string;

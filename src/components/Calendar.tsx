@@ -1,68 +1,70 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Folder, CheckSquare } from 'lucide-react';
 import Card from './ui/Card';
+
+interface Project {
+  id: number;
+  name: string;
+  start_date: string;
+  end_date: string;
+  delivery_date: string;
+  status: string;
+  milestones: string[];
+}
+
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  due_date: string;
+  project_id: number | null;
+  responsible_name?: string;
+  project_name?: string;
+}
 
 interface CalendarEvent {
   id: string;
   title: string;
   date: string;
-  type: 'deadline' | 'milestone' | 'meeting' | 'task';
+  endDate?: string;
+  type: 'project' | 'task';
   project?: string;
-  time?: string;
+  responsible?: string;
 }
 
 const Calendar: React.FC = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
-  const [showAddEvent, setShowAddEvent] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'both'>('both');
+  const [filteredResponsible, setFilteredResponsible] = useState<number | null>(null);
 
-  // Données d'événements simulées
   useEffect(() => {
-    const mockEvents: CalendarEvent[] = [
-      {
-        id: '1',
-        title: 'Échéance Projet Alpha',
-        date: '2024-02-15',
-        type: 'deadline',
-        project: 'Projet Alpha',
-        time: '17:00'
-      },
-      {
-        id: '2',
-        title: 'Réunion équipe Beta',
-        date: '2024-01-25',
-        type: 'meeting',
-        project: 'Projet Beta',
-        time: '14:00'
-      },
-      {
-        id: '3',
-        title: 'Jalon Gamma',
-        date: '2024-01-30',
-        type: 'milestone',
-        project: 'Projet Gamma',
-        time: '09:00'
-      },
-      {
-        id: '4',
-        title: 'Tâche Delta critique',
-        date: '2024-01-20',
-        type: 'task',
-        project: 'Projet Delta',
-        time: '16:00'
-      },
-      {
-        id: '5',
-        title: 'Revue mensuelle',
-        date: '2024-01-31',
-        type: 'meeting',
-        time: '10:00'
-      }
-    ];
-    setEvents(mockEvents);
+    fetchData();
   }, []);
+
+  const fetchData = async () => {
+    try {
+      const [projectsRes, tasksRes] = await Promise.all([
+        fetch('/api/projects'),
+        fetch('/api/tasks')
+      ]);
+
+      const projectsData = await projectsRes.json();
+      const tasksData = await tasksRes.json();
+
+      setProjects(projectsData);
+      setTasks(tasksData);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('Erreur lors du chargement des données:', error);
+      setIsLoading(false);
+    }
+  };
 
   const getDaysInMonth = (date: Date) => {
     const year = date.getFullYear();
@@ -96,27 +98,58 @@ const Calendar: React.FC = () => {
     return days;
   };
 
-  const getEventsForDate = (date: Date) => {
+  const getEventsForDate = (date: Date): { projects: CalendarEvent[]; tasks: CalendarEvent[] } => {
     const dateStr = date.toISOString().split('T')[0];
-    return events.filter(event => event.date === dateStr);
+    const events = { projects: [] as CalendarEvent[], tasks: [] as CalendarEvent[] };
+
+    // Projets dont la date de livraison correspond
+    projects.forEach(project => {
+      if (project.delivery_date === dateStr) {
+        events.projects.push({
+          id: `project-${project.id}`,
+          title: project.name,
+          date: project.delivery_date,
+          type: 'project',
+          project: project.name
+        });
+      }
+    });
+
+    // Tâches
+    tasks.forEach(task => {
+      const taskDueDate = task.due_date || task.end_date;
+      if (taskDueDate === dateStr) {
+        // Filtrer par responsable si nécessaire
+        if (filteredResponsible && task.project_id !== filteredResponsible) {
+          return;
+        }
+
+        events.tasks.push({
+          id: `task-${task.id}`,
+          title: task.title,
+          date: taskDueDate,
+          type: 'task',
+          project: task.project_name,
+          responsible: task.responsible_name
+        });
+      }
+    });
+
+    return events;
   };
 
   const getEventTypeColor = (type: string) => {
     switch (type) {
-      case 'deadline': return 'bg-red-100 text-red-700 border-red-200';
-      case 'milestone': return 'bg-green-100 text-green-700 border-green-200';
-      case 'meeting': return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'task': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'project': return 'bg-green-100 text-green-700 border-green-200';
+      case 'task': return 'bg-blue-100 text-blue-700 border-blue-200';
       default: return 'bg-gray-100 text-gray-700 border-gray-200';
     }
   };
 
   const getEventTypeIcon = (type: string) => {
     switch (type) {
-      case 'deadline': return '⏰';
-      case 'milestone': return '🎯';
-      case 'meeting': return '👥';
-      case 'task': return '✅';
+      case 'project': return <Folder className="w-3 h-3" />;
+      case 'task': return <CheckSquare className="w-3 h-3" />;
       default: return '📅';
     }
   };
@@ -147,6 +180,14 @@ const Calendar: React.FC = () => {
 
   const days = getDaysInMonth(currentDate);
   const weekDays = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      </div>
+    );
+  }
 
   return (
     <motion.div
@@ -185,38 +226,48 @@ const Calendar: React.FC = () => {
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
-            
-            {/* Vues */}
-            <div className="flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
-              {(['month', 'week', 'day'] as const).map((viewType) => (
-                <button
-                  key={viewType}
-                  onClick={() => setView(viewType)}
-                  className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                    view === viewType
-                      ? 'bg-white text-slate-800 shadow-sm'
-                      : 'text-slate-600 hover:text-slate-800'
-                  }`}
-                >
-                  {viewType === 'month' ? 'Mois' : viewType === 'week' ? 'Semaine' : 'Jour'}
-                </button>
-              ))}
-            </div>
-            
-            {/* Bouton ajouter événement */}
-            <button
-              onClick={() => setShowAddEvent(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Ajouter</span>
-            </button>
           </div>
+        </div>
+
+        {/* Onglets Projets/Tâches */}
+        <div className="mb-6 flex items-center space-x-1 bg-slate-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab('projects')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'projects'
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            <Folder className="w-4 h-4 inline mr-2" />
+            Projets
+          </button>
+          <button
+            onClick={() => setActiveTab('tasks')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'tasks'
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4 inline mr-2" />
+            Tâches
+          </button>
+          <button
+            onClick={() => setActiveTab('both')}
+            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+              activeTab === 'both'
+                ? 'bg-white text-slate-800 shadow-sm'
+                : 'text-slate-600 hover:text-slate-800'
+            }`}
+          >
+            📅 Les deux
+          </button>
         </div>
 
         {/* Mois/Année */}
         <div className="text-center mb-6">
-          <h3 className="text-xl font-semibold text-slate-800">
+          <h3 className="text-xl font-semibold text-slate-800 capitalize">
             {formatDate(currentDate)}
           </h3>
         </div>
@@ -235,6 +286,16 @@ const Calendar: React.FC = () => {
             const dayEvents = getEventsForDate(day.date);
             const isCurrentMonth = day.isCurrentMonth;
             const isTodayDate = isToday(day.date);
+            
+            // Déterminer quels événements afficher selon l'onglet actif
+            const displayEvents: CalendarEvent[] = [];
+            
+            if (activeTab === 'projects' || activeTab === 'both') {
+              displayEvents.push(...dayEvents.projects);
+            }
+            if (activeTab === 'tasks' || activeTab === 'both') {
+              displayEvents.push(...dayEvents.tasks);
+            }
             
             return (
               <div
@@ -256,19 +317,19 @@ const Calendar: React.FC = () => {
                 
                 {/* Événements du jour */}
                 <div className="space-y-1">
-                  {dayEvents.slice(0, 3).map((event) => (
+                  {displayEvents.slice(0, 3).map((event) => (
                     <div
                       key={event.id}
-                      className={`text-xs p-1 rounded border ${getEventTypeColor(event.type)} truncate`}
-                      title={`${event.title} - ${event.time || ''}`}
+                      className={`text-xs p-1 rounded border flex items-center space-x-1 ${getEventTypeColor(event.type)}`}
+                      title={`${event.title}${event.project ? ` - ${event.project}` : ''}${event.responsible ? ` - ${event.responsible}` : ''}`}
                     >
-                      <span className="mr-1">{getEventTypeIcon(event.type)}</span>
-                      {event.title}
+                      {getEventTypeIcon(event.type)}
+                      <span className="truncate">{event.title}</span>
                     </div>
                   ))}
-                  {dayEvents.length > 3 && (
+                  {displayEvents.length > 3 && (
                     <div className="text-xs text-slate-500">
-                      +{dayEvents.length - 3} autres
+                      +{displayEvents.length - 3} autres
                     </div>
                   )}
                 </div>
@@ -282,17 +343,14 @@ const Calendar: React.FC = () => {
       <Card>
         <h3 className="text-lg font-semibold text-slate-800 mb-4">Légende</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { type: 'deadline', label: 'Échéances', icon: '⏰' },
-            { type: 'milestone', label: 'Jalons', icon: '🎯' },
-            { type: 'meeting', label: 'Réunions', icon: '👥' },
-            { type: 'task', label: 'Tâches', icon: '✅' }
-          ].map((item) => (
-            <div key={item.type} className="flex items-center space-x-2">
-              <div className={`w-4 h-4 rounded border ${getEventTypeColor(item.type)}`}></div>
-              <span className="text-sm text-slate-600">{item.icon} {item.label}</span>
-            </div>
-          ))}
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded border bg-green-100 border-green-200"></div>
+            <span className="text-sm text-slate-600">📁 Projets</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 rounded border bg-blue-100 border-blue-200"></div>
+            <span className="text-sm text-slate-600">✅ Tâches</span>
+          </div>
         </div>
       </Card>
     </motion.div>
