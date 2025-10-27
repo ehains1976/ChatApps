@@ -1,3 +1,25 @@
+FROM node:18-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies
+RUN npm install
+
+# Copy source files
+COPY src ./src
+COPY vite.config.ts ./
+COPY tsconfig*.json ./
+COPY postcss.config.js ./
+COPY tailwind.config.js ./
+COPY index.html ./
+
+# Build frontend
+RUN npm run build
+
+# Production stage
 FROM node:18-alpine
 
 WORKDIR /app
@@ -5,19 +27,14 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies (all, including dev dependencies for build)
-RUN npm install
+# Install only production dependencies
+RUN npm ci --only=production
 
-# Copy only necessary files
-COPY src ./src
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
+
+# Copy backend files
 COPY simple-backend.js ./
-COPY vite.config.ts ./
-COPY tsconfig*.json ./
-COPY postcss.config.js ./
-COPY tailwind.config.js ./
-
-# Build frontend
-RUN npm run build
 
 # Expose port
 EXPOSE 3001
