@@ -399,14 +399,30 @@ const server = http.createServer((req, res) => {
       }
     }
   }
-  else if (path === '/') {
-    // Servir le fichier HTML principal
-    fs.readFile('./index.html', (err, data) => {
+  else if (path === '/' || path.startsWith('/src/') || path.startsWith('/assets/')) {
+    // Servir les fichiers statiques du frontend React
+    const filePath = path === '/' ? './dist/index.html' : `./dist${path}`;
+    
+    fs.readFile(filePath, (err, data) => {
       if (err) {
-        sendError(res, 'Fichier non trouvé', 404);
+        // Fallback sur index.html pour le routing React
+        fs.readFile('./dist/index.html', (err, fallback) => {
+          if (err) {
+            sendError(res, 'Fichier non trouvé', 404);
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'text/html' });
+          res.end(fallback);
+        });
         return;
       }
-      res.writeHead(200, { 'Content-Type': 'text/html' });
+      
+      // Déterminer le type de contenu
+      const contentType = path.endsWith('.css') ? 'text/css' : 
+                         path.endsWith('.js') ? 'application/javascript' :
+                         path.endsWith('.html') ? 'text/html' : 'text/html';
+      
+      res.writeHead(200, { 'Content-Type': contentType });
       res.end(data);
     });
   }
