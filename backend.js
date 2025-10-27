@@ -24,7 +24,9 @@ async function start() {
     dbInitialized = true;
     console.log('✅ Base de données initialisée');
   } catch (error) {
-    console.error('❌ Erreur initialisation DB:', error);
+    console.error('⚠️ Erreur initialisation DB:', error.message);
+    console.log('⚠️ Le backend continue sans initialisation automatique');
+    console.log('⚠️ Les tables doivent être créées manuellement');
   }
 }
 start();
