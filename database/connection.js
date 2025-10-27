@@ -11,13 +11,6 @@ function getConnectionString() {
     return null;
   }
   
-  // Si c'est une URL interne Railway, la convertir en URL publique
-  if (url.includes('postgres.railway.internal') || url.includes('railway.internal')) {
-    // Convertir l'URL interne en URL publique
-    url = url.replace(/@postgres\.railway\.internal:\d+/, '@containers-us-west-136.railway.app:5432');
-    console.log('📡 Conversion URL interne → externe');
-  }
-  
   console.log('🔌 Connexion à PostgreSQL:', url.replace(/:[^:@]+@/, ':****@')); // Masquer le mot de passe
   
   return url;
