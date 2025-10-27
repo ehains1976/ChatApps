@@ -4,11 +4,12 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "backend": "node simple-backend.js",
+    "backend": "node backend.js",
     "frontend": "vite",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
     "build": "vite build",
-    "start": "node simple-backend.js",
+    "start": "node backend.js",
+    "migrate": "node database/migrate.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -21,8 +22,10 @@
     "@tailwindcss/forms": "^0.5.10",
     "@tailwindcss/typography": "^0.5.19",
     "@types/react-big-calendar": "^1.16.3",
+    "bcryptjs": "^2.4.3",
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.547.0",
+    "pg": "^8.16.3",
     "react": "^19.1.1",
     "react-big-calendar": "^1.19.4",
     "react-dom": "^19.1.1"

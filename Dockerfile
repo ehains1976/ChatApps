@@ -34,11 +34,12 @@ RUN npm ci --only=production
 COPY --from=builder /app/dist ./dist
 
 # Copy backend files
-COPY simple-backend.js ./
+COPY backend.js ./
+COPY database ./database
 
 # Expose port
 EXPOSE 3001
 
 # Start the application
-CMD ["node", "simple-backend.js"]
+CMD ["node", "backend.js"]
 

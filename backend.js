@@ -1,384 +1,338 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const sqlite3 = require('sqlite3').verbose();
+// Backend VertProjet avec PostgreSQL
+import http from 'http';
+import url from 'url';
+import fs from 'fs';
+import path from 'path';
+import pkg from 'pg';
+const { Pool } = pkg;
+import bcrypt from 'bcryptjs';
+import { initializeDatabase } from './database/init.js';
 
-const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Pool de connexions PostgreSQL
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
+});
 
-// Base de données SQLite
-const db = new sqlite3.Database('./vertprojet.db', (err) => {
-  if (err) {
-    console.error('Erreur lors de l\'ouverture de la base de données:', err.message);
-  } else {
-    console.log('✅ Base de données SQLite connectée');
+// Initialiser la base de données au démarrage
+let dbInitialized = false;
+async function start() {
+  try {
+    await initializeDatabase();
+    dbInitialized = true;
+    console.log('✅ Base de données initialisée');
+  } catch (error) {
+    console.error('❌ Erreur initialisation DB:', error);
+  }
+}
+start();
+
+// Fonction pour gérer les requêtes CORS
+function setCORSHeaders(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+}
+
+function sendJSON(res, data, statusCode = 200) {
+  setCORSHeaders(res);
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+function sendError(res, message, statusCode = 500) {
+  setCORSHeaders(res);
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ error: message }));
+}
+
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      try {
+        resolve(JSON.parse(body));
+      } catch (e) {
+        reject(e);
+      }
+    });
+    req.on('error', reject);
+  });
+}
+
+// Routes API avec PostgreSQL
+const routes = {
+  // Route dashboard stats
+  async '/api/dashboard/stats'(req, res, method) {
+    const result = await pool.query(`
+      SELECT 
+        COUNT(*) FILTER (WHERE status = 'En cours') as tasksInProgress,
+        COUNT(*) FILTER (WHERE status = 'Terminé') as tasksCompleted,
+        COUNT(*) FILTER (WHERE status = 'En retard') as tasksOverdue,
+        COUNT(*) FILTER (WHERE status != 'Terminé') as activeProjects
+      FROM projects
+    `);
+    sendJSON(res, result.rows[0]);
+  },
+
+  // Routes Users
+  async '/api/users'(req, res, method) {
+    if (method === 'GET') {
+      const result = await pool.query('SELECT id, prenom, nom, entreprise, courriel FROM users');
+      sendJSON(res, result.rows);
+    } else if (method === 'POST') {
+      const body = await parseBody(req);
+      const result = await pool.query(
+        'INSERT INTO users (prenom, nom, entreprise, courriel) VALUES ($1, $2, $3, $4) RETURNING id',
+        [body.prenom, body.nom, body.entreprise, body.courriel]
+      );
+      sendJSON(res, { id: result.rows[0].id, message: 'Utilisateur créé avec succès' }, 201);
+    }
+  },
+
+  async '/api/users/:id'(req, res, method, params) {
+    const id = parseInt(params.id);
+    if (method === 'GET') {
+      const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+      if (result.rows.length === 0) {
+        sendError(res, 'Utilisateur non trouvé', 404);
+        return;
+      }
+      sendJSON(res, result.rows[0]);
+    } else if (method === 'PUT') {
+      const body = await parseBody(req);
+      await pool.query(
+        'UPDATE users SET prenom = $1, nom = $2, entreprise = $3, courriel = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5',
+        [body.prenom, body.nom, body.entreprise, body.courriel, id]
+      );
+      sendJSON(res, { message: 'Utilisateur mis à jour avec succès' });
+    } else if (method === 'DELETE') {
+      await pool.query('DELETE FROM users WHERE id = $1', [id]);
+      sendJSON(res, { message: 'Utilisateur supprimé avec succès' });
+    }
+  },
+
+  // Routes Projects
+  async '/api/projects'(req, res, method) {
+    if (method === 'GET') {
+      const result = await pool.query(`
+        SELECT p.*, u.prenom as owner_prenom, u.nom as owner_nom, u.courriel as owner_courriel,
+               (SELECT json_agg(m.name) FROM milestones m WHERE m.project_id = p.id) as milestones,
+               (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as total_tasks,
+               (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'Terminé') as completed_tasks
+        FROM projects p
+        LEFT JOIN users u ON p.owner_id = u.id
+        ORDER BY p.id
+      `);
+      sendJSON(res, result.rows);
+    } else if (method === 'POST') {
+      const body = await parseBody(req);
+      const result = await pool.query(
+        `INSERT INTO projects (name, description, status, start_date, end_date, delivery_date, team_size, owner_id, hours_allocated)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [body.name, body.description, body.status || 'En cours', body.start_date, body.end_date, body.delivery_date, body.team_size || 1, body.owner_id, body.hours_allocated || 0]
+      );
+      
+      // Créer les jalons si fournis
+      if (body.milestones && Array.isArray(body.milestones)) {
+        for (const milestone of body.milestones) {
+          await pool.query('INSERT INTO milestones (project_id, name) VALUES ($1, $2)', [result.rows[0].id, milestone]);
+        }
+      }
+      
+      sendJSON(res, { id: result.rows[0].id, message: 'Projet créé avec succès' }, 201);
+    }
+  },
+
+  async '/api/projects/:id'(req, res, method, params) {
+    const id = parseInt(params.id);
+    if (method === 'GET') {
+      const result = await pool.query(`
+        SELECT p.*, u.prenom as owner_prenom, u.nom as owner_nom,
+               (SELECT json_agg(json_build_object('id', m.id, 'name', m.name, 'due_date', m.due_date, 'completed', m.completed))
+                FROM milestones m WHERE m.project_id = p.id) as milestones
+        FROM projects p
+        LEFT JOIN users u ON p.owner_id = u.id
+        WHERE p.id = $1
+      `, [id]);
+      if (result.rows.length === 0) {
+        sendError(res, 'Projet non trouvé', 404);
+        return;
+      }
+      sendJSON(res, result.rows[0]);
+    }
+  },
+
+  // Routes Tasks avec many-to-many responsables
+  async '/api/tasks'(req, res, method, params, query) {
+    if (method === 'GET') {
+      let querySQL = `
+        SELECT t.*, 
+               p.name as project_name,
+               (SELECT json_agg(json_build_object('id', u.id, 'prenom', u.prenom, 'nom', u.nom))
+                FROM users u
+                JOIN task_responsibles tr ON u.id = tr.user_id
+                WHERE tr.task_id = t.id) as responsables
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        WHERE 1=1
+      `;
+      const queryParams = [];
+      let paramIndex = 1;
+
+      if (query.responsible_id) {
+        querySQL += ` AND EXISTS (SELECT 1 FROM task_responsibles tr WHERE tr.task_id = t.id AND tr.user_id = $${paramIndex})`;
+        queryParams.push(parseInt(query.responsible_id));
+        paramIndex++;
+      }
+      
+      if (query.project_id) {
+        querySQL += ` AND t.project_id = $${paramIndex}`;
+        queryParams.push(parseInt(query.project_id));
+        paramIndex++;
+      }
+      
+      if (query.status) {
+        querySQL += ` AND t.status = $${paramIndex}`;
+        queryParams.push(query.status);
+        paramIndex++;
+      }
+
+      querySQL += ' ORDER BY t.id';
+      const result = await pool.query(querySQL, queryParams);
+      sendJSON(res, result.rows);
+    } else if (method === 'POST') {
+      const body = await parseBody(req);
+      const result = await pool.query(
+        `INSERT INTO tasks (title, description, status, priority, start_date, end_date, due_date, progress, project_id, is_recurrent, recurrent_pattern)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+        [body.title, body.description, body.status || 'À faire', body.priority || 'Moyenne', body.start_date, body.end_date, body.due_date, body.progress || 0, body.project_id, body.is_recurrent || false, body.recurrent_pattern]
+      );
+      
+      // Créer les relations responsables si fournis
+      if (body.responsible_id || (Array.isArray(body.responsible_ids))) {
+        const responsibleIds = Array.isArray(body.responsible_ids) ? body.responsible_ids : [body.responsible_id];
+        for (const responsibleId of responsibleIds) {
+          if (responsibleId) {
+            await pool.query('INSERT INTO task_responsibles (task_id, user_id) VALUES ($1, $2)', [result.rows[0].id, responsibleId]);
+          }
+        }
+      }
+      
+      sendJSON(res, { id: result.rows[0].id, message: 'Tâche créée avec succès' }, 201);
+    }
+  },
+
+  async '/api/tasks/:id'(req, res, method, params) {
+    const id = parseInt(params.id);
+    if (method === 'DELETE') {
+      await pool.query('DELETE FROM tasks WHERE id = $1', [id]);
+      sendJSON(res, { message: 'Tâche supprimée avec succès' });
+    } else if (method === 'PUT') {
+      const body = await parseBody(req);
+      await pool.query(
+        `UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, start_date = $5, end_date = $6, due_date = $7, progress = $8, project_id = $9, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $10`,
+        [body.title, body.description, body.status, body.priority, body.start_date, body.end_date, body.due_date, body.progress, body.project_id, id]
+      );
+      sendJSON(res, { message: 'Tâche mise à jour avec succès' });
+    }
+  }
+};
+
+// Serveur HTTP
+const server = http.createServer(async (req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+  const pathname = parsedUrl.pathname;
+  const method = req.method;
+
+  // Gérer CORS preflight
+  if (method === 'OPTIONS') {
+    setCORSHeaders(res);
+    res.writeHead(200);
+    res.end();
+    return;
+  }
+
+  // Servir les fichiers statiques
+  if (pathname.startsWith('/assets/') || pathname === '/vite.svg') {
+    const filePath = pathname.startsWith('/assets/') ? `./dist${pathname}` : `./dist${pathname}`;
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        sendError(res, 'Fichier non trouvé', 404);
+        return;
+      }
+      const ext = path.extname(pathname);
+      const contentType = ext === '.js' ? 'application/javascript' : 
+                         ext === '.css' ? 'text/css' :
+                         ext === '.svg' ? 'image/svg+xml' : 'application/octet-stream';
+      res.writeHead(200, { 'Content-Type': contentType });
+      res.end(data);
+    });
+    return;
+  }
+
+  // Servir index.html pour le routing React
+  if (pathname === '/' || !pathname.startsWith('/api')) {
+    fs.readFile('./dist/index.html', (err, data) => {
+      if (err) {
+        sendError(res, 'Application non trouvée', 404);
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end(data);
+    });
+    return;
+  }
+
+  // Routes API
+  try {
+    const routeKey = Object.keys(routes).find(key => {
+      if (key.includes(':')) {
+        const pattern = key.replace(/:(\w+)/g, '(\\d+)').replace(/\//g, '\\/');
+        const regex = new RegExp('^' + pattern + '$');
+        return regex.test(pathname);
+      }
+      return pathname === key;
+    });
+
+    if (routeKey && routes[routeKey]) {
+      const params = {};
+      if (routeKey.includes(':')) {
+        const parts = routeKey.split('/');
+        const pathParts = pathname.split('/');
+        parts.forEach((part, i) => {
+          if (part.startsWith(':')) {
+            const paramName = part.substring(1);
+            params[paramName] = pathParts[i];
+          }
+        });
+      }
+      await routes[routeKey](req, res, method, params, parsedUrl.query);
+    } else {
+      sendError(res, 'Route non trouvée', 404);
+    }
+  } catch (error) {
+    console.error('Erreur:', error);
+    sendError(res, error.message, 500);
   }
 });
 
-// Initialisation de la base de données
-const initDatabase = () => {
-  // Table des projets
-  db.run(`
-    CREATE TABLE IF NOT EXISTS projects (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      description TEXT,
-      status TEXT DEFAULT 'En cours',
-      progress INTEGER DEFAULT 0,
-      start_date TEXT,
-      end_date TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-
-  // Table des tâches
-  db.run(`
-    CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER,
-      title TEXT NOT NULL,
-      description TEXT,
-      status TEXT DEFAULT 'À faire',
-      priority TEXT DEFAULT 'Moyenne',
-      progress INTEGER DEFAULT 0,
-      start_date TEXT,
-      due_date TEXT,
-      assigned_to TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects (id)
-    )
-  `);
-
-  // Table des sous-tâches
-  db.run(`
-    CREATE TABLE IF NOT EXISTS subtasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      task_id INTEGER,
-      title TEXT NOT NULL,
-      status TEXT DEFAULT 'À faire',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (task_id) REFERENCES tasks (id)
-    )
-  `);
-
-  // Table des équipes
-  db.run(`
-    CREATE TABLE IF NOT EXISTS teams (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      project_id INTEGER,
-      member_name TEXT NOT NULL,
-      role TEXT,
-      email TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (project_id) REFERENCES projects (id)
-    )
-  `);
-
-  console.log('✅ Tables de base de données créées');
-};
-
-// Données de démonstration
-const seedDatabase = () => {
-  // Vérifier si des données existent déjà
-  db.get("SELECT COUNT(*) as count FROM projects", (err, row) => {
-    if (err) {
-      console.error('Erreur lors de la vérification des données:', err.message);
-      return;
-    }
-
-    if (row.count === 0) {
-      console.log('🌱 Ajout des données de démonstration...');
-      
-      // Projets de démonstration
-      const projects = [
-        {
-          name: 'Projet Alpha',
-          description: 'Développement d\'une nouvelle fonctionnalité',
-          status: 'En cours',
-          progress: 85,
-          start_date: '2024-01-01',
-          end_date: '2024-02-15'
-        },
-        {
-          name: 'Projet Beta',
-          description: 'Refonte de l\'interface utilisateur',
-          status: 'En cours',
-          progress: 60,
-          start_date: '2024-01-15',
-          end_date: '2024-03-01'
-        },
-        {
-          name: 'Projet Gamma',
-          description: 'Optimisation des performances',
-          status: 'Terminé',
-          progress: 100,
-          start_date: '2023-12-01',
-          end_date: '2024-01-30'
-        },
-        {
-          name: 'Projet Delta',
-          description: 'Migration vers nouvelle architecture',
-          status: 'En retard',
-          progress: 30,
-          start_date: '2024-01-01',
-          end_date: '2024-01-20'
-        }
-      ];
-
-      projects.forEach(project => {
-        db.run(
-          `INSERT INTO projects (name, description, status, progress, start_date, end_date) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [project.name, project.description, project.status, project.progress, project.start_date, project.end_date]
-        );
-      });
-
-      // Tâches de démonstration
-      const tasks = [
-        { project_id: 1, title: 'Analyse des besoins', status: 'Terminé', progress: 100, priority: 'Haute' },
-        { project_id: 1, title: 'Conception technique', status: 'En cours', progress: 80, priority: 'Haute' },
-        { project_id: 1, title: 'Développement', status: 'En cours', progress: 60, priority: 'Moyenne' },
-        { project_id: 1, title: 'Tests', status: 'À faire', progress: 0, priority: 'Moyenne' },
-        { project_id: 2, title: 'Design UI/UX', status: 'En cours', progress: 70, priority: 'Haute' },
-        { project_id: 2, title: 'Implémentation frontend', status: 'À faire', progress: 0, priority: 'Haute' },
-        { project_id: 3, title: 'Audit de performance', status: 'Terminé', progress: 100, priority: 'Haute' },
-        { project_id: 3, title: 'Optimisation', status: 'Terminé', progress: 100, priority: 'Haute' },
-        { project_id: 4, title: 'Planification migration', status: 'En cours', progress: 50, priority: 'Haute' },
-        { project_id: 4, title: 'Migration des données', status: 'À faire', progress: 0, priority: 'Haute' }
-      ];
-
-      tasks.forEach(task => {
-        db.run(
-          `INSERT INTO tasks (project_id, title, status, progress, priority) 
-           VALUES (?, ?, ?, ?, ?)`,
-          [task.project_id, task.title, task.status, task.progress, task.priority]
-        );
-      });
-
-      // Équipes de démonstration
-      const teams = [
-        { project_id: 1, member_name: 'Alice Martin', role: 'Chef de projet', email: 'alice@company.com' },
-        { project_id: 1, member_name: 'Bob Dupont', role: 'Développeur', email: 'bob@company.com' },
-        { project_id: 1, member_name: 'Claire Leroy', role: 'Designer', email: 'claire@company.com' },
-        { project_id: 2, member_name: 'David Moreau', role: 'Chef de projet', email: 'david@company.com' },
-        { project_id: 2, member_name: 'Emma Petit', role: 'Développeur', email: 'emma@company.com' },
-        { project_id: 3, member_name: 'François Blanc', role: 'Architecte', email: 'francois@company.com' },
-        { project_id: 3, member_name: 'Gabrielle Roux', role: 'Développeur', email: 'gabrielle@company.com' },
-        { project_id: 4, member_name: 'Hugo Simon', role: 'Chef de projet', email: 'hugo@company.com' },
-        { project_id: 4, member_name: 'Isabelle Garcia', role: 'DevOps', email: 'isabelle@company.com' },
-        { project_id: 4, member_name: 'Julien Thomas', role: 'Développeur', email: 'julien@company.com' }
-      ];
-
-      teams.forEach(member => {
-        db.run(
-          `INSERT INTO teams (project_id, member_name, role, email) 
-           VALUES (?, ?, ?, ?)`,
-          [member.project_id, member.member_name, member.role, member.email]
-        );
-      });
-
-      console.log('✅ Données de démonstration ajoutées');
-    }
-  });
-};
-
-// Routes API
-
-// Dashboard - Statistiques générales
-app.get('/api/dashboard/stats', (req, res) => {
-  const stats = {};
-  
-  // Tâches en cours
-  db.get("SELECT COUNT(*) as count FROM tasks WHERE status = 'En cours'", (err, row) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    stats.tasksInProgress = row.count;
-    
-    // Tâches terminées
-    db.get("SELECT COUNT(*) as count FROM tasks WHERE status = 'Terminé'", (err, row) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      stats.tasksCompleted = row.count;
-      
-      // Tâches en retard
-      db.get("SELECT COUNT(*) as count FROM tasks WHERE status = 'En retard'", (err, row) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        stats.tasksOverdue = row.count;
-        
-        // Projets actifs
-        db.get("SELECT COUNT(*) as count FROM projects WHERE status != 'Terminé'", (err, row) => {
-          if (err) {
-            res.status(500).json({ error: err.message });
-            return;
-          }
-          stats.activeProjects = row.count;
-          
-          res.json(stats);
-        });
-      });
-    });
-  });
-});
-
-// Projets
-app.get('/api/projects', (req, res) => {
-  db.all(`
-    SELECT p.*, 
-           COUNT(t.id) as total_tasks,
-           COUNT(CASE WHEN t.status = 'Terminé' THEN 1 END) as completed_tasks,
-           COUNT(team.id) as team_size
-    FROM projects p
-    LEFT JOIN tasks t ON p.id = t.project_id
-    LEFT JOIN teams team ON p.id = team.project_id
-    GROUP BY p.id
-    ORDER BY p.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
-  });
-});
-
-app.get('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
-  
-  db.get("SELECT * FROM projects WHERE id = ?", [projectId], (err, project) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    if (!project) {
-      res.status(404).json({ error: 'Projet non trouvé' });
-      return;
-    }
-    
-    // Récupérer les tâches du projet
-    db.all("SELECT * FROM tasks WHERE project_id = ?", [projectId], (err, tasks) => {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      
-      // Récupérer l'équipe du projet
-      db.all("SELECT * FROM teams WHERE project_id = ?", [projectId], (err, team) => {
-        if (err) {
-          res.status(500).json({ error: err.message });
-          return;
-        }
-        
-        res.json({
-          ...project,
-          tasks,
-          team
-        });
-      });
-    });
-  });
-});
-
-// Tâches
-app.get('/api/tasks', (req, res) => {
-  db.all(`
-    SELECT t.*, p.name as project_name
-    FROM tasks t
-    LEFT JOIN projects p ON t.project_id = p.id
-    ORDER BY t.created_at DESC
-  `, (err, rows) => {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json(rows);
-  });
-});
-
-// Créer un nouveau projet
-app.post('/api/projects', (req, res) => {
-  const { name, description, start_date, end_date } = req.body;
-  
-  db.run(
-    `INSERT INTO projects (name, description, start_date, end_date) 
-     VALUES (?, ?, ?, ?)`,
-    [name, description, start_date, end_date],
-    function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json({ id: this.lastID, message: 'Projet créé avec succès' });
-    }
-  );
-});
-
-// Mettre à jour un projet
-app.put('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
-  const { name, description, status, progress, start_date, end_date } = req.body;
-  
-  db.run(
-    `UPDATE projects 
-     SET name = ?, description = ?, status = ?, progress = ?, start_date = ?, end_date = ?, updated_at = CURRENT_TIMESTAMP
-     WHERE id = ?`,
-    [name, description, status, progress, start_date, end_date, projectId],
-    function(err) {
-      if (err) {
-        res.status(500).json({ error: err.message });
-        return;
-      }
-      res.json({ message: 'Projet mis à jour avec succès' });
-    }
-  );
-});
-
-// Supprimer un projet
-app.delete('/api/projects/:id', (req, res) => {
-  const projectId = req.params.id;
-  
-  db.run("DELETE FROM projects WHERE id = ?", [projectId], function(err) {
-    if (err) {
-      res.status(500).json({ error: err.message });
-      return;
-    }
-    res.json({ message: 'Projet supprimé avec succès' });
-  });
-});
-
-// Initialiser la base de données
-initDatabase();
-seedDatabase();
-
 // Démarrer le serveur
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Serveur VertProjet démarré sur le port ${PORT}`);
   console.log(`📊 API disponible sur http://localhost:${PORT}/api`);
-  console.log(`🎯 Dashboard: http://localhost:${PORT}/api/dashboard/stats`);
+  console.log(`💾 Base de données: ${process.env.DATABASE_URL ? 'PostgreSQL (Railway)' : 'Locale'}`);
 });
 
-// Gestion des erreurs
 process.on('SIGINT', () => {
   console.log('\n🛑 Arrêt du serveur...');
-  db.close((err) => {
-    if (err) {
-      console.error('Erreur lors de la fermeture de la base de données:', err.message);
-    } else {
-      console.log('✅ Base de données fermée');
-    }
+  pool.end();
+  server.close(() => {
+    console.log('✅ Serveur fermé');
     process.exit(0);
   });
 });
