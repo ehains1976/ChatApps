@@ -6,14 +6,19 @@ import {
   AlertTriangle, 
   FolderOpen,
   Calendar,
-  BarChart3
+  BarChart3,
+  Eye
 } from 'lucide-react';
 import StatsCard from './StatsCard';
 import ProjectCard from './ProjectCard';
 import Card from './ui/Card';
 import { useDashboardStats, useProjects } from '../hooks/useApi';
 
-const Dashboard: React.FC = () => {
+interface DashboardProps {
+  onProjectClick: (projectId: number) => void;
+}
+
+const Dashboard: React.FC<DashboardProps> = ({ onProjectClick }) => {
   // Utilisation des hooks API
   const { stats, loading: statsLoading, error: statsError } = useDashboardStats();
   const { projects, loading: projectsLoading, error: projectsError } = useProjects();
@@ -123,18 +128,26 @@ const Dashboard: React.FC = () => {
                   .filter(project => project.status !== 'Terminé' && project.status !== 'Annulé')
                   .slice(0, 6)
                   .map((project, index) => (
-                    <ProjectCard
-                      key={project.id}
-                      name={project.name}
-                      description={project.description}
-                      progress={project.progress}
-                      status={project.status as any}
-                      deadline={project.delivery_date || project.end_date}
-                      team={project.team_size || 0}
-                      tasks={project.total_tasks || 0}
-                      completedTasks={project.completed_tasks || 0}
-                      delay={0.3 + index * 0.1}
-                    />
+                    <div key={project.id} className="relative">
+                      <ProjectCard
+                        name={project.name}
+                        description={project.description}
+                        progress={project.progress}
+                        status={project.status as any}
+                        deadline={project.delivery_date || project.end_date}
+                        team={project.team_size || 0}
+                        tasks={project.total_tasks || 0}
+                        completedTasks={project.completed_tasks || 0}
+                        delay={0.3 + index * 0.1}
+                      />
+                      <button
+                        onClick={() => onProjectClick(project.id)}
+                        className="absolute top-2 right-2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-lg"
+                        title="Voir les détails du projet"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    </div>
                   ))
               )}
             </div>

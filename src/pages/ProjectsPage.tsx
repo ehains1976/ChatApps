@@ -1,8 +1,12 @@
 import React from 'react';
 import ProjectsList from '../components/ProjectsList';
 
-const ProjectsPage: React.FC = () => {
-  return <ProjectsList />;
+interface ProjectsPageProps {
+  onProjectClick: (projectId: number) => void;
+}
+
+const ProjectsPage: React.FC<ProjectsPageProps> = ({ onProjectClick }) => {
+  return <ProjectsList onProjectClick={onProjectClick} />;
 };
 
 export default ProjectsPage;

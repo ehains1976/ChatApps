@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
 import UsersPage from './pages/UsersPage';
 import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailsPage from './pages/ProjectDetailsPage';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Calendar from './components/Calendar';
@@ -11,6 +12,7 @@ import Login from './components/Login';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -36,6 +38,16 @@ function App() {
     localStorage.removeItem('token');
   };
 
+  const navigateToProject = (projectId: number) => {
+    setCurrentProjectId(projectId);
+    setCurrentPage('project-details');
+  };
+
+  const navigateBack = () => {
+    setCurrentProjectId(null);
+    setCurrentPage('projects');
+  };
+
   // Afficher le login si non authentifié
   if (!user && !isLoading) {
     return <Login onLogin={handleLogin} />;
@@ -56,12 +68,14 @@ function App() {
       case 'tasks':
         return <TasksPage />;
       case 'projects':
-        return <ProjectsPage />;
+        return <ProjectsPage onProjectClick={navigateToProject} />;
+      case 'project-details':
+        return <ProjectDetailsPage projectId={currentProjectId} onBack={navigateBack} />;
       case 'team':
         return <UsersPage />;
       case 'dashboard':
       default:
-        return <DashboardPage />;
+        return <DashboardPage onProjectClick={navigateToProject} />;
     }
   };
 

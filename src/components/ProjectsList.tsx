@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Plus, Folder, TrendingUp, Calendar, Users, CheckCircle, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Folder, TrendingUp, Calendar, Users, CheckCircle, Edit, Trash2, X, Eye } from 'lucide-react';
 import Card from './ui/Card';
 
 interface Project {
@@ -23,7 +23,11 @@ interface Project {
   milestones: string[];
 }
 
-const ProjectsList: React.FC = () => {
+interface ProjectsListProps {
+  onProjectClick: (projectId: number) => void;
+}
+
+const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
   const toDateInput = (d?: string) => {
     if (!d) return '';
     // Accept already formatted or ISO strings
@@ -217,6 +221,13 @@ const ProjectsList: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => onProjectClick(project.id)}
+                        className="p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+                        title="Voir les détails du projet"
+                      >
+                        <Eye className="w-5 h-5" />
+                      </button>
                       <button
                         onClick={() => handleEdit(project)}
                         className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
