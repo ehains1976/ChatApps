@@ -127,26 +127,19 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectClick }) => {
                   .filter(project => project.status !== 'Terminé' && project.status !== 'Annulé')
                   .slice(0, 6)
                   .map((project, index) => (
-                    <div key={project.id} className="relative">
-                      <ProjectCard
-                        name={project.name}
-                        description={project.description}
-                        progress={project.progress}
-                        status={project.status as any}
-                        deadline={project.delivery_date || project.end_date}
-                        team={project.team_size || 0}
-                        tasks={project.total_tasks || 0}
-                        completedTasks={project.completed_tasks || 0}
-                        delay={0.3 + index * 0.1}
-                      />
-                      <button
-                        onClick={() => onProjectClick(project.id)}
-                        className="absolute top-2 right-2 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700 transition-colors shadow-lg"
-                        title="Voir les détails du projet"
-                      >
-                        Voir détail
-                      </button>
-                    </div>
+                    <ProjectCard
+                      key={project.id}
+                      name={project.name}
+                      description={project.description}
+                      progress={project.progress}
+                      status={project.status as any}
+                      deadline={project.delivery_date || project.end_date}
+                      team={project.team_size || 0}
+                      tasks={project.total_tasks || 0}
+                      completedTasks={project.completed_tasks || 0}
+                      delay={0.3 + index * 0.1}
+                      onViewDetails={() => onProjectClick(project.id)}
+                    />
                   ))
               )}
             </div>

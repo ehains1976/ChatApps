@@ -14,6 +14,7 @@ interface ProjectCardProps {
   tasks: number;
   completedTasks: number;
   delay?: number;
+  onViewDetails?: () => void;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
@@ -26,6 +27,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
   tasks,
   completedTasks,
   delay = 0,
+  onViewDetails,
 }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -113,7 +115,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
 
         {/* Actions */}
         <div className="flex space-x-2">
-          <Button variant="primary" size="sm" className="flex-1">
+          <Button variant="primary" size="sm" className="flex-1" onClick={onViewDetails}>
             Voir détails
           </Button>
           <Button variant="outline" size="sm">
