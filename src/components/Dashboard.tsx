@@ -6,8 +6,7 @@ import {
   AlertTriangle, 
   FolderOpen,
   Calendar,
-  BarChart3,
-  Eye
+  BarChart3
 } from 'lucide-react';
 import StatsCard from './StatsCard';
 import ProjectCard from './ProjectCard';
@@ -142,10 +141,10 @@ const Dashboard: React.FC<DashboardProps> = ({ onProjectClick }) => {
                       />
                       <button
                         onClick={() => onProjectClick(project.id)}
-                        className="absolute top-2 right-2 p-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors shadow-lg"
+                        className="absolute top-2 right-2 px-3 py-1.5 bg-primary-600 text-white text-xs font-medium rounded-md hover:bg-primary-700 transition-colors shadow-lg"
                         title="Voir les détails du projet"
                       >
-                        <Eye className="w-4 h-4" />
+                        Voir détail
                       </button>
                     </div>
                   ))

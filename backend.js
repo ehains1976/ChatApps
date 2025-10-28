@@ -359,9 +359,9 @@ const routes = {
     } else if (method === 'POST') {
       const body = await parseBody(req);
       const result = await pool.query(
-        `INSERT INTO tasks (title, description, status, priority, start_date, end_date, due_date, progress, project_id, is_recurrent, recurrent_pattern)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-        [body.title, body.description, body.status || 'À faire', body.priority || 'Moyenne', body.start_date, body.end_date, body.due_date, body.progress || 0, body.project_id, body.is_recurrent || false, body.recurrent_pattern]
+        `INSERT INTO tasks (title, description, status, priority, start_date, end_date, due_date, progress, project_id, milestone_id, is_recurrent, recurrent_pattern)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        [body.title, body.description, body.status || 'À faire', body.priority || 'Moyenne', body.start_date, body.end_date, body.due_date, body.progress || 0, body.project_id, body.milestone_id || null, body.is_recurrent || false, body.recurrent_pattern]
       );
       
       // Créer les relations responsables si fournis
@@ -386,9 +386,9 @@ const routes = {
     } else if (method === 'PUT') {
       const body = await parseBody(req);
       await pool.query(
-        `UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, start_date = $5, end_date = $6, due_date = $7, progress = $8, project_id = $9, updated_at = CURRENT_TIMESTAMP
-         WHERE id = $10`,
-        [body.title, body.description, body.status, body.priority, body.start_date, body.end_date, body.due_date, body.progress, body.project_id, id]
+        `UPDATE tasks SET title = $1, description = $2, status = $3, priority = $4, start_date = $5, end_date = $6, due_date = $7, progress = $8, project_id = $9, milestone_id = $10, updated_at = CURRENT_TIMESTAMP
+         WHERE id = $11`,
+        [body.title, body.description, body.status, body.priority, body.start_date, body.end_date, body.due_date, body.progress, body.project_id, body.milestone_id || null, id]
       );
       sendJSON(res, { message: 'Tâche mise à jour avec succès' });
     }

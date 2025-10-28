@@ -37,6 +37,22 @@ export async function initializeDatabase() {
       }
     ];
     
+    // S'assurer que les colonnes nécessaires existent
+    // Ajouter milestone_id sur tasks si manquant pour lier une tâche à un jalon
+    await pool.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns 
+          WHERE table_name = 'tasks' AND column_name = 'milestone_id'
+        ) THEN
+          ALTER TABLE tasks 
+            ADD COLUMN milestone_id INTEGER REFERENCES milestones(id) ON DELETE SET NULL;
+          CREATE INDEX IF NOT EXISTS idx_tasks_milestone ON tasks(milestone_id);
+        END IF;
+      END$$;
+    `);
+
     for (const user of adminUsers) {
       // Supporter l'ancien courriel bzinc@bzinc.com en le migrant vers .ca
       const possibleEmails = user.courriel === 'bzinc@bzinc.ca' ? ['bzinc@bzinc.ca', 'bzinc@bzinc.com'] : [user.courriel];
