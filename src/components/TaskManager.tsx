@@ -48,6 +48,13 @@ interface Task {
 }
 
 const TaskManager: React.FC = () => {
+  const toDateInput = (d?: string) => {
+    if (!d) return '';
+    // Accept already formatted or ISO strings
+    const idx = d.indexOf('T');
+    return idx > 0 ? d.slice(0, idx) : d;
+  };
+
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -146,9 +153,9 @@ const TaskManager: React.FC = () => {
       responsible_id: task.responsible_id,
       priority: task.priority,
       status: task.status,
-      start_date: task.start_date,
-      end_date: task.end_date,
-      due_date: task.due_date,
+      start_date: toDateInput(task.start_date),
+      end_date: toDateInput(task.end_date),
+      due_date: toDateInput(task.due_date),
       is_recurrent: task.is_recurrent,
       recurrent_pattern: task.recurrent_pattern || 'daily'
     });
@@ -531,12 +538,12 @@ const TaskManager: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                       Date de début
                     </label>
-                    <input
-                      type="date"
-                      value={formData.start_date}
-                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
-                      className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                    />
+                  <input
+                    type="date"
+                    value={toDateInput(formData.start_date)}
+                    onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
                   </div>
 
                   {/* Date de fin */}
@@ -546,7 +553,7 @@ const TaskManager: React.FC = () => {
                     </label>
                     <input
                       type="date"
-                      value={formData.end_date}
+                      value={toDateInput(formData.end_date)}
                       onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
@@ -560,7 +567,7 @@ const TaskManager: React.FC = () => {
                     <input
                       type="date"
                       required
-                      value={formData.due_date}
+                      value={toDateInput(formData.due_date)}
                       onChange={(e) => setFormData({ ...formData, due_date: e.target.value })}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     />
