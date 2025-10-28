@@ -152,12 +152,67 @@ const Dashboard: React.FC = () => {
             <Card>
               <div className="flex items-center space-x-2 mb-4">
                 <Calendar className="w-5 h-5 text-primary-600" />
-                <h3 className="text-lg font-semibold text-slate-800">Calendrier</h3>
+                <h3 className="text-lg font-semibold text-slate-800">Échéances à venir</h3>
               </div>
-              <div className="text-center text-slate-500">
-                <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                <p className="text-sm">Calendrier interactif</p>
-                <p className="text-xs text-slate-400">Bientôt disponible</p>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {(() => {
+                  // Calculer les échéances dans les 7 prochains jours
+                  const today = new Date();
+                  const nextWeek = new Date(today);
+                  nextWeek.setDate(today.getDate() + 7);
+                  
+                  const upcomingEvents: Array<{title: string, date: string, type: 'project' | 'task'}> = [];
+                  
+                  // Ajouter les projets avec delivery_date
+                  projects.forEach(project => {
+                    if (project.delivery_date) {
+                      const deliveryDate = new Date(project.delivery_date);
+                      if (deliveryDate >= today && deliveryDate <= nextWeek) {
+                        upcomingEvents.push({
+                          title: project.name,
+                          date: project.delivery_date,
+                          type: 'project'
+                        });
+                      }
+                    }
+                  });
+                  
+                  // Trier par date
+                  upcomingEvents.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+                  
+                  // Afficher les 5 prochains
+                  const eventsToShow = upcomingEvents.slice(0, 5);
+                  
+                  if (eventsToShow.length === 0) {
+                    return (
+                      <div className="text-center py-6 text-slate-500">
+                        <Calendar className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                        <p className="text-sm">Aucune échéance</p>
+                      </div>
+                    );
+                  }
+                  
+                  return eventsToShow.map((event, index) => {
+                    const eventDate = new Date(event.date);
+                    const formattedDate = eventDate.toLocaleDateString('fr-FR', { 
+                      day: 'numeric', 
+                      month: 'short' 
+                    });
+                    
+                    return (
+                      <div 
+                        key={index}
+                        className="flex items-center space-x-3 p-2 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        <div className={`w-2 h-2 rounded-full ${event.type === 'project' ? 'bg-green-500' : 'bg-blue-500'}`}></div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-slate-800 truncate">{event.title}</p>
+                          <p className="text-xs text-slate-500">{formattedDate}</p>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </Card>
           </motion.div>

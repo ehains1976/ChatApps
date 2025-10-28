@@ -24,7 +24,7 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-slate-800">VertProjet</h1>
-              <p className="text-sm text-slate-500">Gestion de Projets Ultra-Professionnelle</p>
+              <p className="text-sm text-slate-500">Gestion de Projets TI</p>
             </div>
           </div>
         </div>
