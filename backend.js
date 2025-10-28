@@ -390,6 +390,21 @@ const routes = {
          WHERE id = $11`,
         [body.title, body.description, body.status, body.priority, body.start_date, body.end_date, body.due_date, body.progress, body.project_id, body.milestone_id || null, id]
       );
+      
+      // Mettre à jour les relations responsables
+      // D'abord supprimer les anciennes relations
+      await pool.query('DELETE FROM task_responsibles WHERE task_id = $1', [id]);
+      
+      // Puis créer les nouvelles relations
+      if (body.responsible_id || (Array.isArray(body.responsible_ids))) {
+        const responsibleIds = Array.isArray(body.responsible_ids) ? body.responsible_ids : [body.responsible_id];
+        for (const responsibleId of responsibleIds) {
+          if (responsibleId) {
+            await pool.query('INSERT INTO task_responsibles (task_id, user_id) VALUES ($1, $2)', [id, responsibleId]);
+          }
+        }
+      }
+      
       sendJSON(res, { message: 'Tâche mise à jour avec succès' });
     }
   }
