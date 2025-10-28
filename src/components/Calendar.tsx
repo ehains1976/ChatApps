@@ -43,6 +43,17 @@ const Calendar: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'projects' | 'tasks' | 'both'>('both');
   const [filteredResponsible, setFilteredResponsible] = useState<number | null>(null);
 
+  // Fonction pour normaliser les dates au format yyyy-MM-dd
+  const normalizeDate = (dateStr: string | undefined | null): string | null => {
+    if (!dateStr) return null;
+    // Si c'est déjà au format yyyy-MM-dd
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+    // Si c'est au format ISO, extraire juste la date
+    const idx = dateStr.indexOf('T');
+    if (idx > 0) return dateStr.slice(0, idx);
+    return dateStr;
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -56,6 +67,11 @@ const Calendar: React.FC = () => {
 
       const projectsData = await projectsRes.json();
       const tasksData = await tasksRes.json();
+
+      console.log('Projects loaded:', projectsData.length);
+      console.log('Tasks loaded:', tasksData.length);
+      console.log('Sample project:', projectsData[0]);
+      console.log('Sample task:', tasksData[0]);
 
       setProjects(projectsData);
       setTasks(tasksData);
@@ -104,11 +120,12 @@ const Calendar: React.FC = () => {
 
     // Projets dont la date de livraison correspond
     projects.forEach(project => {
-      if (project.delivery_date === dateStr) {
+      const normalizedDeliveryDate = normalizeDate(project.delivery_date);
+      if (normalizedDeliveryDate === dateStr) {
         events.projects.push({
           id: `project-${project.id}`,
           title: project.name,
-          date: project.delivery_date,
+          date: normalizedDeliveryDate || '',
           type: 'project',
           project: project.name
         });
@@ -117,7 +134,7 @@ const Calendar: React.FC = () => {
 
     // Tâches
     tasks.forEach(task => {
-      const taskDueDate = task.due_date || task.end_date;
+      const taskDueDate = normalizeDate(task.due_date || task.end_date);
       if (taskDueDate === dateStr) {
         // Filtrer par responsable si nécessaire
         if (filteredResponsible && task.project_id !== filteredResponsible) {
@@ -127,7 +144,7 @@ const Calendar: React.FC = () => {
         events.tasks.push({
           id: `task-${task.id}`,
           title: task.title,
-          date: taskDueDate,
+          date: taskDueDate || '',
           type: 'task',
           project: task.project_name,
           responsible: task.responsible_name
