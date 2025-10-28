@@ -132,10 +132,21 @@ const routes = {
       sendJSON(res, result.rows);
     } else if (method === 'POST') {
       const body = await parseBody(req);
+      
+      // Si pas d'owner_id, utiliser le premier utilisateur admin disponible
+      let ownerId = body.owner_id;
+      if (!ownerId) {
+        const userResult = await pool.query('SELECT id FROM users ORDER BY id LIMIT 1');
+        if (userResult.rows.length > 0) {
+          ownerId = userResult.rows[0].id;
+          console.log('Using default owner_id:', ownerId);
+        }
+      }
+      
       const result = await pool.query(
         `INSERT INTO projects (name, description, status, start_date, end_date, delivery_date, team_size, owner_id, hours_allocated)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [body.name, body.description, body.status || 'En cours', body.start_date, body.end_date, body.delivery_date, body.team_size || 1, body.owner_id, body.hours_allocated || 0]
+        [body.name, body.description, body.status || 'En cours', body.start_date, body.end_date, body.delivery_date, body.team_size || 1, ownerId, body.hours_allocated || 0]
       );
       
       // Créer les jalons si fournis
