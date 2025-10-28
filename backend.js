@@ -67,6 +67,44 @@ function parseBody(req) {
 
 // Routes API avec PostgreSQL
 const routes = {
+  // Route login
+  async '/api/auth/login'(req, res, method) {
+    if (method === 'POST') {
+      const body = await parseBody(req);
+      
+      try {
+        // Chercher l'utilisateur par email
+        const userResult = await pool.query(
+          'SELECT id, prenom, nom, courriel, password_hash, role FROM users WHERE courriel = $1',
+          [body.email]
+        );
+        
+        if (userResult.rows.length === 0) {
+          sendError(res, 'Courriel ou mot de passe incorrect', 401);
+          return;
+        }
+        
+        const user = userResult.rows[0];
+        
+        // Vérifier le mot de passe
+        const bcrypt = await import('bcryptjs');
+        const isValid = await bcrypt.compare(body.password, user.password_hash);
+        
+        if (!isValid) {
+          sendError(res, 'Courriel ou mot de passe incorrect', 401);
+          return;
+        }
+        
+        // Retourner l'utilisateur (sans password_hash)
+        const { password_hash, ...userWithoutPassword } = user;
+        sendJSON(res, { user: userWithoutPassword, token: 'dummy-token' });
+      } catch (error) {
+        console.error('Erreur login:', error);
+        sendError(res, 'Erreur serveur', 500);
+      }
+    }
+  },
+
   // Route dashboard stats
   async '/api/dashboard/stats'(req, res, method) {
     const result = await pool.query(`

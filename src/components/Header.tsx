@@ -1,8 +1,13 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Search, User, Settings } from 'lucide-react';
+import { Bell, Search, User, Settings, LogOut } from 'lucide-react';
 
-const Header: React.FC = () => {
+interface HeaderProps {
+  user?: any;
+  onLogout?: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
   return (
     <motion.header 
       className="bg-white border-b border-slate-200 px-6 py-4"
@@ -66,10 +71,23 @@ const Header: React.FC = () => {
               <User className="w-4 h-4 text-white" />
             </div>
             <div className="text-sm">
-              <p className="font-medium text-slate-800">Directeur TI</p>
-              <p className="text-slate-500">Le Meilleur</p>
+              <p className="font-medium text-slate-800">{user?.prenom} {user?.nom}</p>
+              <p className="text-slate-500">{user?.role === 'admin' ? 'Administrateur' : 'Utilisateur'}</p>
             </div>
           </motion.div>
+
+          {/* Logout Button */}
+          {onLogout && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={onLogout}
+              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+              title="Déconnexion"
+            >
+              <LogOut className="w-5 h-5" />
+            </motion.button>
+          )}
         </div>
       </div>
     </motion.header>
