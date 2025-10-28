@@ -87,7 +87,7 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
       const normalizedTasks = Array.isArray(tasksData)
         ? tasksData.map((t: any) => ({
             ...t,
-            milestone_id: t.milestone_id === null || t.milestone_id === undefined || t.milestone_id === ''
+            milestone_id: t.milestone_id === null || t.milestone_id === undefined || t.milestone_id === '' || t.milestone_id === 'null'
               ? null
               : Number(t.milestone_id)
           }))
@@ -102,6 +102,10 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
 
   const getTasksByMilestone = (milestoneId: number) => {
     const milestoneTasks = tasks.filter(task => {
+      // Gérer les cas où milestone_id est null, undefined, ou string "null"
+      if (task.milestone_id === null || task.milestone_id === undefined || task.milestone_id === 'null') {
+        return false;
+      }
       const taskMilestoneId = Number(task.milestone_id);
       const matches = taskMilestoneId === milestoneId;
       console.log(`Comparing task milestone_id ${taskMilestoneId} (${typeof taskMilestoneId}) with ${milestoneId} (${typeof milestoneId}): ${matches}`);
