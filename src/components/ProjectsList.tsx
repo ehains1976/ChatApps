@@ -13,6 +13,8 @@ interface Project {
   end_date: string;
   delivery_date: string;
   team_size: number;
+  hours_allocated?: number;
+  price?: number;
   total_tasks: number;
   completed_tasks: number;
   milestones: string[];
@@ -32,6 +34,7 @@ const ProjectsList: React.FC = () => {
     end_date: '',
     delivery_date: '',
     team_size: 1,
+    hours_allocated: 0,
     milestones: ''
   });
 
@@ -66,6 +69,7 @@ const ProjectsList: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formData,
+          hours_allocated: Number(formData.hours_allocated) || 0,
           milestones: formData.milestones.split(',').map(m => m.trim())
         })
       });
@@ -102,6 +106,7 @@ const ProjectsList: React.FC = () => {
       end_date: project.end_date,
       delivery_date: project.delivery_date,
       team_size: project.team_size,
+      hours_allocated: project.hours_allocated || 0,
       milestones: project.milestones?.join(', ') || ''
     });
     setShowForm(true);
@@ -370,6 +375,29 @@ const ProjectsList: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, team_size: parseInt(e.target.value) })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Heures allouées
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={formData.hours_allocated}
+                    onChange={(e) => setFormData({ ...formData, hours_allocated: parseInt(e.target.value || '0') })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Prix estimé (170$/h)
+                  </label>
+                  <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50">
+                    {((Number(formData.hours_allocated) || 0) * 170).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}
+                  </div>
                 </div>
               </div>
 
