@@ -73,6 +73,10 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
       const tasksRes = await fetch(`/api/tasks?project_id=${projectId}`);
       const tasksData = await tasksRes.json();
       
+      console.log('Project data:', projectData);
+      console.log('Tasks data:', tasksData);
+      console.log('Milestones:', projectData.milestones);
+      
       setProject(projectData);
       setTasks(tasksData);
     } catch (error) {
@@ -83,7 +87,9 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
   };
 
   const getTasksByMilestone = (milestoneId: number) => {
-    return tasks.filter(task => task.milestone_id === milestoneId);
+    const milestoneTasks = tasks.filter(task => task.milestone_id === milestoneId);
+    console.log(`Tasks for milestone ${milestoneId}:`, milestoneTasks);
+    return milestoneTasks;
   };
 
   const getTasksWithoutMilestone = () => {
