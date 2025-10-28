@@ -15,6 +15,9 @@ interface Project {
   team_size: number;
   hours_allocated?: number;
   price?: number;
+  owner_prenom?: string;
+  owner_nom?: string;
+  owner_courriel?: string;
   total_tasks: number;
   completed_tasks: number;
   milestones: string[];
@@ -245,6 +248,19 @@ const ProjectsList: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <Calendar className="w-4 h-4 text-slate-600" />
                       <span className="text-sm text-slate-600">{project.delivery_date}</span>
+                    </div>
+                  </div>
+
+                  {/* Hours & Price + Owner */}
+                  <div className="grid grid-cols-3 gap-4 mb-4">
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium text-slate-700">Heures:</span> {project.hours_allocated ?? 0} h
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      <span className="font-medium text-slate-700">Prix:</span> {(((project.hours_allocated ?? 0) * 170)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}
+                    </div>
+                    <div className="text-sm text-slate-600 truncate">
+                      <span className="font-medium text-slate-700">Responsable:</span> {project.owner_prenom} {project.owner_nom}
                     </div>
                   </div>
 
