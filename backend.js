@@ -70,14 +70,17 @@ const routes = {
   // Route login
   async '/api/auth/login'(req, res, method) {
     if (method === 'POST') {
-      const body = await parseBody(req);
-      
       try {
+        const body = await parseBody(req);
+        console.log('Login attempt for:', body.email);
+        
         // Chercher l'utilisateur par email
         const userResult = await pool.query(
           'SELECT id, prenom, nom, courriel, password_hash, role FROM users WHERE courriel = $1',
           [body.email]
         );
+        
+        console.log('User found:', userResult.rows.length > 0);
         
         if (userResult.rows.length === 0) {
           sendError(res, 'Courriel ou mot de passe incorrect', 401);
@@ -89,16 +92,24 @@ const routes = {
         // Vérifier le mot de passe
         const bcrypt = await import('bcryptjs');
         let passwordHash = user.password_hash;
-        // Si le hash est manquant (anciens enregistrements), tenter une auto-migration pour les comptes admin par défaut
-        if (!passwordHash && (user.courriel === 'bzinc@bzinc.ca' || user.courriel === 'vertdure@vertdure.com')) {
+        
+        // Si le hash est manquant ou null
+        if (!passwordHash || passwordHash === '') {
+          console.log('Password hash missing, attempting auto-migration');
           const expected = user.courriel === 'bzinc@bzinc.ca' ? 'Jai.1.Mcd0' : 'Jai.du.Beau.Gaz0n';
           if (body.password === expected) {
             passwordHash = await bcrypt.hash(expected, 10);
             await pool.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [passwordHash, user.id]);
+            console.log('Password hash created');
+          } else {
+            console.log('Password incorrect');
+            sendError(res, 'Courriel ou mot de passe incorrect', 401);
+            return;
           }
         }
 
-        const isValid = passwordHash ? await bcrypt.compare(body.password, passwordHash) : false;
+        const isValid = await bcrypt.compare(body.password, passwordHash);
+        console.log('Password valid:', isValid);
         
         if (!isValid) {
           sendError(res, 'Courriel ou mot de passe incorrect', 401);
