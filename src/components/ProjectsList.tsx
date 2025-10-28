@@ -31,6 +31,7 @@ const ProjectsList: React.FC = () => {
     return idx > 0 ? d.slice(0, idx) : d;
   };
   const [projects, setProjects] = useState<Project[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -44,12 +45,24 @@ const ProjectsList: React.FC = () => {
     delivery_date: '',
     team_size: 1,
     hours_allocated: 0,
+    owner_id: null as number | null,
     milestones: ''
   });
 
   useEffect(() => {
+    fetchUsers();
     fetchProjects();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/users');
+      const data = await response.json();
+      setUsers(data);
+    } catch (error) {
+      console.error('Erreur lors du chargement des utilisateurs:', error);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -79,6 +92,7 @@ const ProjectsList: React.FC = () => {
         body: JSON.stringify({
           ...formData,
           hours_allocated: Number(formData.hours_allocated) || 0,
+          owner_id: formData.owner_id || null,
           milestones: formData.milestones.split(',').map(m => m.trim())
         })
       });
@@ -116,6 +130,7 @@ const ProjectsList: React.FC = () => {
       delivery_date: toDateInput(project.delivery_date),
       team_size: project.team_size,
       hours_allocated: project.hours_allocated || 0,
+      owner_id: (project as any).owner_id || null,
       milestones: project.milestones?.join(', ') || ''
     });
     setShowForm(true);
@@ -132,6 +147,8 @@ const ProjectsList: React.FC = () => {
       end_date: '',
       delivery_date: '',
       team_size: 1,
+      hours_allocated: 0,
+      owner_id: null,
       milestones: ''
     });
   };
@@ -370,6 +387,25 @@ const ProjectsList: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Responsable du projet *
+                  </label>
+                  <select
+                    required
+                    value={formData.owner_id || ''}
+                    onChange={(e) => setFormData({ ...formData, owner_id: e.target.value ? parseInt(e.target.value) : null })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="">Sélectionner un responsable</option>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id}>
+                        {user.prenom} {user.nom}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Statut
