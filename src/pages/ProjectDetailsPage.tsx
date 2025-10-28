@@ -77,6 +77,11 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
       console.log('Tasks data:', tasksData);
       console.log('Milestones:', projectData.milestones);
       
+      // Debug: vérifier les milestone_id des tâches
+      tasksData.forEach((task: any, index: number) => {
+        console.log(`Task ${index}: milestone_id = "${task.milestone_id}" (type: ${typeof task.milestone_id})`);
+      });
+      
       setProject(projectData);
       // Forcer milestone_id en nombre pour un matching strict avec les IDs de jalons
       const normalizedTasks = Array.isArray(tasksData)
@@ -96,7 +101,12 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
   };
 
   const getTasksByMilestone = (milestoneId: number) => {
-    const milestoneTasks = tasks.filter(task => task.milestone_id === milestoneId);
+    const milestoneTasks = tasks.filter(task => {
+      const taskMilestoneId = Number(task.milestone_id);
+      const matches = taskMilestoneId === milestoneId;
+      console.log(`Comparing task milestone_id ${taskMilestoneId} (${typeof taskMilestoneId}) with ${milestoneId} (${typeof milestoneId}): ${matches}`);
+      return matches;
+    });
     console.log(`Tasks for milestone ${milestoneId}:`, milestoneTasks);
     return milestoneTasks;
   };
