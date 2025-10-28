@@ -203,10 +203,13 @@ const routes = {
         }
       }
       
+      // Définir delivery_date par défaut si manquant
+      const deliveryDate = body.delivery_date || body.end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
       const result = await pool.query(
         `INSERT INTO projects (name, description, status, start_date, end_date, delivery_date, team_size, owner_id, hours_allocated)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-        [body.name, body.description, body.status || 'En cours', body.start_date, body.end_date, body.delivery_date, body.team_size || 1, ownerId, body.hours_allocated || 0]
+        [body.name, body.description, body.status || 'En cours', body.start_date, body.end_date, deliveryDate, body.team_size || 1, ownerId, body.hours_allocated || 0]
       );
       
       // Créer les jalons si fournis
