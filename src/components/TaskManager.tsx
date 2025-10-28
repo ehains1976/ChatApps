@@ -58,6 +58,7 @@ const TaskManager: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [milestones, setMilestones] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -70,6 +71,7 @@ const TaskManager: React.FC = () => {
     title: '',
     description: '',
     project_id: null as number | null,
+    milestone_id: null as number | null,
     responsible_id: null as number | null,
     priority: 'Moyenne',
     status: 'À faire',
@@ -103,6 +105,26 @@ const TaskManager: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       setIsLoading(false);
+    }
+  };
+
+  const fetchMilestones = async (projectId: number) => {
+    try {
+      const response = await fetch(`/api/projects/${projectId}`);
+      const project = await response.json();
+      setMilestones(project.milestones || []);
+    } catch (error) {
+      console.error('Erreur lors du chargement des jalons:', error);
+      setMilestones([]);
+    }
+  };
+
+  const handleProjectChange = (projectId: number | null) => {
+    setFormData({ ...formData, project_id: projectId, milestone_id: null });
+    if (projectId) {
+      fetchMilestones(projectId);
+    } else {
+      setMilestones([]);
     }
   };
 
@@ -150,6 +172,7 @@ const TaskManager: React.FC = () => {
       title: task.title,
       description: task.description,
       project_id: task.project_id,
+      milestone_id: (task as any).milestone_id || null,
       responsible_id: task.responsible_id,
       priority: task.priority,
       status: task.status,
@@ -159,16 +182,24 @@ const TaskManager: React.FC = () => {
       is_recurrent: task.is_recurrent,
       recurrent_pattern: task.recurrent_pattern || 'daily'
     });
+    
+    // Charger les jalons du projet si un projet est sélectionné
+    if (task.project_id) {
+      fetchMilestones(task.project_id);
+    }
+    
     setShowForm(true);
   };
 
   const resetForm = () => {
     setEditingTask(null);
     setShowForm(false);
+    setMilestones([]);
     setFormData({
       title: '',
       description: '',
       project_id: null,
+      milestone_id: null,
       responsible_id: null,
       priority: 'Moyenne',
       status: 'À faire',
@@ -468,7 +499,7 @@ const TaskManager: React.FC = () => {
                     </label>
                     <select
                       value={formData.project_id || ''}
-                      onChange={(e) => setFormData({ ...formData, project_id: e.target.value ? parseInt(e.target.value) : null })}
+                      onChange={(e) => handleProjectChange(e.target.value ? parseInt(e.target.value) : null)}
                       className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
                       <option value="">Sans projet</option>
@@ -479,6 +510,27 @@ const TaskManager: React.FC = () => {
                       ))}
                     </select>
                   </div>
+
+                  {/* Jalon */}
+                  {formData.project_id && (
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Jalon
+                      </label>
+                      <select
+                        value={formData.milestone_id || ''}
+                        onChange={(e) => setFormData({ ...formData, milestone_id: e.target.value ? parseInt(e.target.value) : null })}
+                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <option value="">Sans jalon</option>
+                        {milestones.map(milestone => (
+                          <option key={milestone.id} value={milestone.id}>
+                            {milestone.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-3 gap-4">
