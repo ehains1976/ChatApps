@@ -78,7 +78,16 @@ const ProjectDetailsPage: React.FC<ProjectDetailsPageProps> = ({ projectId, onBa
       console.log('Milestones:', projectData.milestones);
       
       setProject(projectData);
-      setTasks(tasksData);
+      // Forcer milestone_id en nombre pour un matching strict avec les IDs de jalons
+      const normalizedTasks = Array.isArray(tasksData)
+        ? tasksData.map((t: any) => ({
+            ...t,
+            milestone_id: t.milestone_id === null || t.milestone_id === undefined || t.milestone_id === ''
+              ? null
+              : Number(t.milestone_id)
+          }))
+        : [];
+      setTasks(normalizedTasks);
     } catch (error) {
       console.error('Erreur lors du chargement des détails:', error);
     } finally {
