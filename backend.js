@@ -252,6 +252,72 @@ const routes = {
     }
   },
 
+  async '/api/projects/:id'(req, res, method, params) {
+    const id = parseInt(params.id);
+    if (method === 'GET') {
+      const result = await pool.query(`
+        SELECT p.*, u.prenom as owner_prenom, u.nom as owner_nom,
+               (SELECT json_agg(json_build_object('id', m.id, 'name', m.name, 'due_date', m.due_date, 'completed', m.completed))
+                FROM milestones m WHERE m.project_id = p.id) as milestones
+        FROM projects p
+        LEFT JOIN users u ON p.owner_id = u.id
+        WHERE p.id = $1
+      `, [id]);
+      if (result.rows.length === 0) {
+        sendError(res, 'Projet non trouvé', 404);
+        return;
+      }
+      sendJSON(res, result.rows[0]);
+    } else if (method === 'PUT') {
+      const body = await parseBody(req);
+      
+      // Convertir les dates vides en null
+      const startDate = body.start_date && body.start_date.trim() !== '' ? body.start_date : null;
+      const endDate = body.end_date && body.end_date.trim() !== '' ? body.end_date : null;
+      const deliveryDate = body.delivery_date || body.end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+      
+      await pool.query(
+        `UPDATE projects SET 
+          name = $1, 
+          description = $2, 
+          status = $3, 
+          start_date = $4, 
+          end_date = $5, 
+          delivery_date = $6, 
+          team_size = $7, 
+          hours_allocated = $8,
+          updated_at = CURRENT_TIMESTAMP
+         WHERE id = $9`,
+        [body.name, body.description, body.status, startDate, endDate, deliveryDate, body.team_size, body.hours_allocated, id]
+      );
+      
+      // Mettre à jour les jalons si fournis
+      if (body.milestones && Array.isArray(body.milestones)) {
+        // Supprimer les anciens jalons
+        await pool.query('DELETE FROM milestones WHERE project_id = $1', [id]);
+        
+        // Ajouter les nouveaux jalons
+        for (const milestone of body.milestones) {
+          if (milestone.trim()) {
+            await pool.query(
+              'INSERT INTO milestones (project_id, name, due_date) VALUES ($1, $2, $3)',
+              [id, milestone.trim(), deliveryDate]
+            );
+          }
+        }
+      }
+      
+      sendJSON(res, { message: 'Projet mis à jour avec succès' });
+    } else if (method === 'DELETE') {
+      // Supprimer les jalons associés
+      await pool.query('DELETE FROM milestones WHERE project_id = $1', [id]);
+      
+      // Supprimer le projet
+      await pool.query('DELETE FROM projects WHERE id = $1', [id]);
+      sendJSON(res, { message: 'Projet supprimé avec succès' });
+    }
+  },
+
   // Routes Tasks avec many-to-many responsables
   async '/api/tasks'(req, res, method, params, query) {
     if (method === 'GET') {
