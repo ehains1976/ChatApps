@@ -191,17 +191,19 @@ const routes = {
       `);
       sendJSON(res, result.rows);
     } else if (method === 'POST') {
-      const body = await parseBody(req);
-      
-      // Si pas d'owner_id, utiliser le premier utilisateur admin disponible
-      let ownerId = body.owner_id;
-      if (!ownerId) {
-        const userResult = await pool.query('SELECT id FROM users ORDER BY id LIMIT 1');
-        if (userResult.rows.length > 0) {
-          ownerId = userResult.rows[0].id;
-          console.log('Using default owner_id:', ownerId);
+      try {
+        const body = await parseBody(req);
+        console.log('Creating project with data:', JSON.stringify(body, null, 2));
+        
+        // Si pas d'owner_id, utiliser le premier utilisateur admin disponible
+        let ownerId = body.owner_id;
+        if (!ownerId) {
+          const userResult = await pool.query('SELECT id FROM users ORDER BY id LIMIT 1');
+          if (userResult.rows.length > 0) {
+            ownerId = userResult.rows[0].id;
+            console.log('Using default owner_id:', ownerId);
+          }
         }
-      }
       
       // Définir delivery_date par défaut si manquant
       const deliveryDate = body.delivery_date || body.end_date || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -219,7 +221,11 @@ const routes = {
         }
       }
       
-      sendJSON(res, { id: result.rows[0].id, message: 'Projet créé avec succès' }, 201);
+        sendJSON(res, { id: result.rows[0].id, message: 'Projet créé avec succès' }, 201);
+      } catch (error) {
+        console.error('Erreur création projet:', error);
+        sendError(res, 'Erreur lors de la création du projet', 500);
+      }
     }
   },
 
