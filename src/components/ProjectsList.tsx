@@ -21,6 +21,12 @@ interface Project {
 }
 
 const ProjectsList: React.FC = () => {
+  const toDateInput = (d?: string) => {
+    if (!d) return '';
+    // Accept already formatted or ISO strings
+    const idx = d.indexOf('T');
+    return idx > 0 ? d.slice(0, idx) : d;
+  };
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -102,9 +108,9 @@ const ProjectsList: React.FC = () => {
       name: project.name,
       description: project.description,
       status: project.status,
-      start_date: project.start_date,
-      end_date: project.end_date,
-      delivery_date: project.delivery_date,
+      start_date: toDateInput(project.start_date),
+      end_date: toDateInput(project.end_date),
+      delivery_date: toDateInput(project.delivery_date),
       team_size: project.team_size,
       hours_allocated: project.hours_allocated || 0,
       milestones: project.milestones?.join(', ') || ''
@@ -327,7 +333,7 @@ const ProjectsList: React.FC = () => {
                   </label>
                   <input
                     type="date"
-                    value={formData.start_date}
+                    value={toDateInput(formData.start_date)}
                     onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -340,7 +346,7 @@ const ProjectsList: React.FC = () => {
                   <input
                     type="date"
                     required
-                    value={formData.delivery_date}
+                    value={toDateInput(formData.delivery_date)}
                     onChange={(e) => setFormData({ ...formData, delivery_date: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
@@ -405,13 +411,13 @@ const ProjectsList: React.FC = () => {
                 <label className="block text-sm font-medium text-slate-700 mb-2">
                   Jalons (séparés par des virgules)
                 </label>
-                <input
-                  type="text"
-                  value={formData.milestones}
-                  onChange={(e) => setFormData({ ...formData, milestones: e.target.value })}
-                  placeholder="Revue initiale, Développement, Tests, Livraison"
-                  className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
+                  <input
+                    type="text"
+                    value={formData.milestones}
+                    onChange={(e) => setFormData({ ...formData, milestones: e.target.value })}
+                    placeholder="Revue initiale, Développement, Tests, Livraison"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
               </div>
 
               <div className="flex items-center justify-end space-x-4 pt-4">
