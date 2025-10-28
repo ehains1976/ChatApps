@@ -119,20 +119,23 @@ const Dashboard: React.FC = () => {
                   <p className="text-red-600">Erreur lors du chargement des projets</p>
                 </div>
               ) : (
-                projects.map((project, index) => (
-                  <ProjectCard
-                    key={project.id}
-                    name={project.name}
-                    description={project.description}
-                    progress={project.progress}
-                    status={project.status as any}
-                    deadline={project.end_date}
-                    team={project.team_size || 0}
-                    tasks={project.total_tasks || 0}
-                    completedTasks={project.completed_tasks || 0}
-                    delay={0.3 + index * 0.1}
-                  />
-                ))
+                projects
+                  .filter(project => project.status !== 'Terminé' && project.status !== 'Annulé')
+                  .slice(0, 6)
+                  .map((project, index) => (
+                    <ProjectCard
+                      key={project.id}
+                      name={project.name}
+                      description={project.description}
+                      progress={project.progress}
+                      status={project.status as any}
+                      deadline={project.delivery_date || project.end_date}
+                      team={project.team_size || 0}
+                      tasks={project.total_tasks || 0}
+                      completedTasks={project.completed_tasks || 0}
+                      delay={0.3 + index * 0.1}
+                    />
+                  ))
               )}
             </div>
           </Card>
