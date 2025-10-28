@@ -23,7 +23,7 @@ export async function initializeDatabase() {
         prenom: 'BZ', 
         nom: 'Inc', 
         entreprise: 'BZ Inc', 
-        courriel: 'bzinc@bzinc.com', 
+        courriel: 'bzinc@bzinc.ca', 
         password: 'Jai.1.Mcd0',
         role: 'admin'
       },

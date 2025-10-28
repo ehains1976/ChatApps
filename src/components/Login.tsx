@@ -159,7 +159,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         <div style={{ marginTop: '2rem', paddingTop: '2rem', borderTop: '1px solid #e2e8f0', fontSize: '0.85rem', color: '#64748b', textAlign: 'center' }}>
           <p style={{ marginBottom: '0.5rem', fontWeight: '600' }}>Comptes de test:</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <div><strong>bzinc@bzinc.com</strong> / Jai.1.Mcd0</div>
+            <div><strong>bzinc@bzinc.ca</strong> / Jai.1.Mcd0</div>
             <div><strong>vertdure@vertdure.com</strong> / Jai.du.Beau.Gaz0n</div>
           </div>
         </div>
