@@ -91,6 +91,7 @@ const routes = {
         
         // Vérifier le mot de passe
         const bcrypt = await import('bcryptjs');
+        const bcryptjs = bcrypt.default || bcrypt;
         let passwordHash = user.password_hash;
         
         // Si le hash est manquant ou null
@@ -98,7 +99,7 @@ const routes = {
           console.log('Password hash missing, attempting auto-migration');
           const expected = user.courriel === 'bzinc@bzinc.ca' ? 'Jai.1.Mcd0' : 'Jai.du.Beau.Gaz0n';
           if (body.password === expected) {
-            passwordHash = await bcrypt.hash(expected, 10);
+            passwordHash = await bcryptjs.hash(expected, 10);
             await pool.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [passwordHash, user.id]);
             console.log('Password hash created');
           } else {
@@ -108,7 +109,7 @@ const routes = {
           }
         }
 
-        const isValid = await bcrypt.compare(body.password, passwordHash);
+        const isValid = await bcryptjs.compare(body.password, passwordHash);
         console.log('Password valid:', isValid);
         
         if (!isValid) {
