@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -15,13 +15,61 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage }) => {
+  const [counts, setCounts] = useState({
+    projects: 0,
+    tasks: 0,
+    users: 0,
+    calendar: 0
+  });
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [projectsRes, tasksRes, usersRes] = await Promise.all([
+          fetch('/api/projects'),
+          fetch('/api/tasks'),
+          fetch('/api/users')
+        ]);
+
+        const projects = await projectsRes.json();
+        const tasks = await tasksRes.json();
+        const users = await usersRes.json();
+
+        // Compter les événements du calendrier (projets avec delivery_date + tâches avec due_date)
+        const today = new Date();
+        const nextWeek = new Date(today);
+        nextWeek.setDate(today.getDate() + 7);
+        
+        const calendarEvents = [
+          ...projects.filter((p: any) => p.delivery_date && new Date(p.delivery_date) >= today && new Date(p.delivery_date) <= nextWeek),
+          ...tasks.filter((t: any) => (t.due_date || t.end_date) && new Date(t.due_date || t.end_date) >= today && new Date(t.due_date || t.end_date) <= nextWeek)
+        ];
+
+        setCounts({
+          projects: projects.length,
+          tasks: tasks.length,
+          users: users.length,
+          calendar: calendarEvents.length
+        });
+      } catch (error) {
+        console.error('Erreur lors du chargement des compteurs:', error);
+      }
+    };
+
+    fetchCounts();
+    
+    // Rafraîchir toutes les 30 secondes
+    const interval = setInterval(fetchCounts, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', page: 'dashboard', count: 0 },
-    { icon: FolderOpen, label: 'Projets', page: 'projects', count: 12 },
-    { icon: CheckSquare, label: 'Tâches', page: 'tasks', count: 45 },
-    { icon: Calendar, label: 'Calendrier', page: 'calendar', count: 8 },
+    { icon: FolderOpen, label: 'Projets', page: 'projects', count: counts.projects },
+    { icon: CheckSquare, label: 'Tâches', page: 'tasks', count: counts.tasks },
+    { icon: Calendar, label: 'Calendrier', page: 'calendar', count: counts.calendar },
     { icon: BarChart3, label: 'Rapports', page: 'reports', count: 0 },
-    { icon: Users, label: 'Équipe', page: 'team', count: 0 },
+    { icon: Users, label: 'Équipe', page: 'team', count: counts.users },
   ];
 
   return (
