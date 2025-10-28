@@ -253,11 +253,7 @@ const ProjectsList: React.FC = () => {
                   </div>
 
                   {/* Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center space-x-2">
-                      <Users className="w-4 h-4 text-slate-600" />
-                      <span className="text-sm text-slate-600">{project.team_size} membres</span>
-                    </div>
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="flex items-center space-x-2">
                       <CheckCircle className="w-4 h-4 text-slate-600" />
                       <span className="text-sm text-slate-600">{project.completed_tasks}/{project.total_tasks} tâches</span>
@@ -422,18 +418,7 @@ const ProjectsList: React.FC = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Taille de l'équipe
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={formData.team_size}
-                    onChange={(e) => setFormData({ ...formData, team_size: parseInt(e.target.value) })}
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
-                </div>
+                {/* removed team size field */}
               </div>
 
               <div className="grid grid-cols-2 gap-4">
