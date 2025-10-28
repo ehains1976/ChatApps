@@ -329,11 +329,32 @@ const routes = {
   }
 };
 
+// Middleware pour forcer HTTPS en production
+if (process.env.NODE_ENV === 'production') {
+  server.on('request', (req, res) => {
+    if (req.headers['x-forwarded-proto'] !== 'https') {
+      res.writeHead(301, {
+        'Location': `https://${req.headers.host}${req.url}`
+      });
+      res.end();
+      return;
+    }
+  });
+}
+
 // Serveur HTTP
 const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
   const method = req.method;
+
+  // Headers de sécurité pour HTTPS
+  if (process.env.NODE_ENV === 'production') {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+  }
 
   // Gérer CORS preflight
   if (method === 'OPTIONS') {

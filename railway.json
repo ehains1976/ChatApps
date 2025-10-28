@@ -13,5 +13,10 @@
     "sleepApplication": false,
     "buildCommand": "",
     "startCommand": ""
+  },
+  "environments": {
+    "production": {
+      "NODE_ENV": "production"
+    }
   }
 }
