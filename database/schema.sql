@@ -76,6 +76,17 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_task_responsibles_task ON task_responsibles(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_responsibles_user ON task_responsibles(user_id);
 
+-- Table des notes associées aux tâches
+CREATE TABLE IF NOT EXISTS task_notes (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    author_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_task_notes_task ON task_notes(task_id);
+
 -- Insertion des utilisateurs admin
 -- Le mot de passe sera hashé dynamiquement au démarrage
 -- bzinc / Jai.1.Mcd0

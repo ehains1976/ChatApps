@@ -408,6 +408,36 @@ const routes = {
       sendJSON(res, { message: 'Tâche mise à jour avec succès' });
     }
   }
+  ,
+  // Notes de tâche
+  async '/api/tasks/:id/notes'(req, res, method, params) {
+    const taskId = parseInt(params.id);
+    if (method === 'GET') {
+      const result = await pool.query(
+        `SELECT n.id, n.content, n.created_at, n.author_id,
+                u.prenom, u.nom
+         FROM task_notes n
+         LEFT JOIN users u ON u.id = n.author_id
+         WHERE n.task_id = $1
+         ORDER BY n.created_at DESC`,
+        [taskId]
+      );
+      sendJSON(res, result.rows);
+    } else if (method === 'POST') {
+      const body = await parseBody(req);
+      if (!body || !body.content || String(body.content).trim() === '') {
+        sendError(res, 'Contenu de note manquant', 400);
+        return;
+      }
+      const authorId = body.author_id || null;
+      const result = await pool.query(
+        `INSERT INTO task_notes (task_id, author_id, content)
+         VALUES ($1, $2, $3) RETURNING id, created_at`,
+        [taskId, authorId, body.content]
+      );
+      sendJSON(res, { id: result.rows[0].id, created_at: result.rows[0].created_at }, 201);
+    }
+  }
 };
 
 // Middleware pour forcer HTTPS en production

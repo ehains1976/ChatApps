@@ -47,6 +47,15 @@ interface Task {
   responsible_email?: string;
 }
 
+interface TaskNote {
+  id: number;
+  content: string;
+  created_at: string;
+  author_id: number | null;
+  prenom?: string;
+  nom?: string;
+}
+
 const TaskManager: React.FC = () => {
   const toDateInput = (d?: string) => {
     if (!d) return '';
@@ -65,6 +74,11 @@ const TaskManager: React.FC = () => {
   const [filterUser, setFilterUser] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterProject, setFilterProject] = useState<number | 'none' | null>(null);
+
+  // Notes
+  const [notes, setNotes] = useState<TaskNote[]>([]);
+  const [newNoteContent, setNewNoteContent] = useState<string>('');
+  const [newNoteAuthorId, setNewNoteAuthorId] = useState<number | ''>('');
 
   // Formulaire
   const [formData, setFormData] = useState({
@@ -198,6 +212,40 @@ const TaskManager: React.FC = () => {
     }
     
     setShowForm(true);
+    // Charger notes
+    fetchNotes(task.id);
+  };
+
+  const fetchNotes = async (taskId: number) => {
+    try {
+      const res = await fetch(`/api/tasks/${taskId}/notes`);
+      if (res.ok) {
+        const data = await res.json();
+        setNotes(data || []);
+      }
+    } catch (e) {
+      console.error('Erreur chargement des notes:', e);
+    }
+  };
+
+  const handleAddNote = async () => {
+    if (!editingTask) return;
+    const content = newNoteContent.trim();
+    if (!content) return;
+    try {
+      const res = await fetch(`/api/tasks/${editingTask.id}/notes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, author_id: newNoteAuthorId || null })
+      });
+      if (res.ok) {
+        setNewNoteContent('');
+        setNewNoteAuthorId('');
+        await fetchNotes(editingTask.id);
+      }
+    } catch (e) {
+      console.error('Erreur ajout note:', e);
+    }
   };
 
   const resetForm = () => {
@@ -642,6 +690,62 @@ const TaskManager: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Notes de la tâche */}
+                {editingTask && (
+                  <div className="space-y-3">
+                    <h4 className="text-lg font-semibold text-slate-800">Notes</h4>
+                    <div className="space-y-2">
+                      {notes.length === 0 ? (
+                        <p className="text-slate-500">Aucune note pour l'instant.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 border-slate-200 bg-slate-50">
+                          {notes.map((n) => (
+                            <div key={n.id} className="text-sm">
+                              <div className="text-slate-700 whitespace-pre-wrap">{n.content}</div>
+                              <div className="text-slate-500 mt-1">
+                                Par {n.prenom && n.nom ? `${n.prenom} ${n.nom}` : 'Inconnu'} · {toDateInput(n.created_at)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-4 gap-3 items-start">
+                      <div className="col-span-3">
+                        <textarea
+                          value={newNoteContent}
+                          onChange={(e) => setNewNoteContent(e.target.value)}
+                          rows={3}
+                          placeholder="Ajouter une note..."
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        />
+                      </div>
+                      <div className="col-span-1 space-y-2">
+                        <select
+                          value={newNoteAuthorId}
+                          onChange={(e) => setNewNoteAuthorId(e.target.value ? parseInt(e.target.value) : '')}
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          <option value="">Auteur (optionnel)</option>
+                          {users.map(u => (
+                            <option key={u.id} value={u.id}>{u.prenom} {u.nom}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={handleAddNote}
+                          className="w-full px-3 py-2 text-white rounded-md"
+                          style={{ backgroundColor: '#16a34a' }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803d'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+                        >
+                          Ajouter la note
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Pattern de récurrence */}
                 {formData.is_recurrent && (
