@@ -198,6 +198,9 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
         {projects.map((project) => {
           const statusColors = getStatusColor(project.status);
+          const computedProgress = project.total_tasks > 0
+            ? Math.round((project.completed_tasks / project.total_tasks) * 100)
+            : 0;
           return (
             <motion.div
               key={project.id}
@@ -250,14 +253,14 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                   <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-slate-700">Progression</span>
-                      <span className="text-sm font-semibold text-slate-800">{project.progress}%</span>
+                      <span className="text-sm font-semibold text-slate-800">{computedProgress}%</span>
                     </div>
                     <div className="w-full bg-slate-200 rounded-full h-2.5">
                       <div 
                         className="rounded-full h-2.5 transition-all"
                         style={{ 
-                          width: `${project.progress}%`,
-                          backgroundColor: project.progress === 100 ? '#16a34a' : '#2563eb'
+                          width: `${computedProgress}%`,
+                          backgroundColor: computedProgress === 100 ? '#16a34a' : '#2563eb'
                         }}
                       ></div>
                     </div>
