@@ -64,7 +64,7 @@ const TaskManager: React.FC = () => {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [filterUser, setFilterUser] = useState<number | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
-  const [filterProject, setFilterProject] = useState<number | null>(null);
+  const [filterProject, setFilterProject] = useState<number | 'none' | null>(null);
 
   // Formulaire
   const [formData, setFormData] = useState({
@@ -241,6 +241,9 @@ const TaskManager: React.FC = () => {
   const filteredTasks = tasks.filter(task => {
     if (filterUser && task.responsible_id !== filterUser) return false;
     if (filterStatus !== 'all' && task.status !== filterStatus) return false;
+    if (filterProject === 'none') {
+      return task.project_id === null;
+    }
     if (filterProject !== null && task.project_id !== filterProject) return false;
     return true;
   });
@@ -317,8 +320,13 @@ const TaskManager: React.FC = () => {
           {/* Filtre par projet */}
           <div className="relative">
             <select
-              value={filterProject !== null ? filterProject : 'all'}
-              onChange={(e) => setFilterProject(e.target.value === 'all' ? null : parseInt(e.target.value))}
+              value={filterProject === null ? 'all' : filterProject}
+              onChange={(e) => {
+                const value = e.target.value;
+                if (value === 'all') return setFilterProject(null);
+                if (value === 'none') return setFilterProject('none');
+                return setFilterProject(parseInt(value));
+              }}
               className="px-4 py-2 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-slate-700 appearance-none cursor-pointer pr-10"
             >
               <option value="all">Tous les projets</option>
