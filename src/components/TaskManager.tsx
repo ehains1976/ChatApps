@@ -94,10 +94,19 @@ const TaskManager: React.FC = () => {
         fetch('/api/projects')
       ]);
 
-      const tasksData = await tasksRes.json();
+      const tasksRaw = await tasksRes.json();
       const usersData = await usersRes.json();
       const projectsData = await projectsRes.json();
 
+      // Normaliser les responsables (backend peut renvoyer "responsables" en tableau)
+      const tasksData: Task[] = (tasksRaw || []).map((t: any) => {
+        const firstResponsible = Array.isArray(t.responsables) && t.responsables.length > 0 ? t.responsables[0] : null;
+        return {
+          ...t,
+          responsible_id: firstResponsible ? firstResponsible.id : t.responsible_id ?? null,
+          responsible_name: firstResponsible ? `${firstResponsible.prenom} ${firstResponsible.nom}` : t.responsible_name ?? 'Non assigné',
+        } as Task;
+      });
       setTasks(tasksData);
       setUsers(usersData);
       setProjects(projectsData);
@@ -385,7 +394,7 @@ const TaskManager: React.FC = () => {
                     <div className="flex items-center space-x-4 text-sm text-slate-600">
                       <div className="flex items-center space-x-1">
                         <CalendarIcon className="w-4 h-4" />
-                        <span>{task.due_date}</span>
+                        <span>{toDateInput(task.due_date)}</span>
                       </div>
                       <div className="flex items-center space-x-1">
                         <User className="w-4 h-4" />
