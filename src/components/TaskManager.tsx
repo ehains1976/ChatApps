@@ -623,6 +623,7 @@ const TaskManager: React.FC = () => {
                       <option value="En cours">En cours</option>
                       <option value="Terminé">Terminé</option>
                       <option value="En retard">En retard</option>
+                      <option value="Reporté">Reporté</option>
                     </select>
                   </div>
 

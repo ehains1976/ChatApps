@@ -426,6 +426,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                     <option value="Terminé">Terminé</option>
                     <option value="En retard">En retard</option>
                     <option value="Planifié">Planifié</option>
+                    <option value="Reporté">Reporté</option>
                   </select>
                 </div>
 
