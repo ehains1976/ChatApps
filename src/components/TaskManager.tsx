@@ -45,6 +45,7 @@ interface Task {
   project_name?: string;
   responsible_name?: string;
   responsible_email?: string;
+  notes_count?: number;
 }
 
 interface TaskNote {
@@ -242,6 +243,8 @@ const TaskManager: React.FC = () => {
         setNewNoteContent('');
         setNewNoteAuthorId('');
         await fetchNotes(editingTask.id);
+        // Rafraîchir la liste pour mettre à jour le badge de notes
+        await fetchData();
       }
     } catch (e) {
       console.error('Erreur ajout note:', e);
@@ -427,7 +430,14 @@ const TaskManager: React.FC = () => {
                 <div className="flex items-start justify-between p-6">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-slate-800">{task.title}</h3>
+                      <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
+                        <span>{task.title}</span>
+                        {(task as any).notes_count > 0 && (
+                          <span className="ml-2 inline-flex items-center justify-center text-[10px] leading-none px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
+                            {String((task as any).notes_count)} note{(task as any).notes_count > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </h3>
                       <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)}`}>
                         {getStatusIcon(task.status)}
                         <span className="ml-1">{task.status}</span>

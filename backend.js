@@ -327,7 +327,8 @@ const routes = {
                (SELECT json_agg(json_build_object('id', u.id, 'prenom', u.prenom, 'nom', u.nom))
                 FROM users u
                 JOIN task_responsibles tr ON u.id = tr.user_id
-                WHERE tr.task_id = t.id) as responsables
+                WHERE tr.task_id = t.id) as responsables,
+               (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id) as notes_count
         FROM tasks t
         LEFT JOIN projects p ON t.project_id = p.id
         WHERE 1=1
