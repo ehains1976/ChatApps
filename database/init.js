@@ -12,10 +12,27 @@ export async function initializeDatabase() {
   try {
     console.log('🔄 Initialisation de la base de données...');
     
+    // Test de connexion d'abord
+    try {
+      const testResult = await pool.query('SELECT NOW()');
+      console.log('✅ Connexion PostgreSQL réussie:', testResult.rows[0]);
+    } catch (connError) {
+      console.error('❌ Erreur de connexion PostgreSQL:', connError.message);
+      throw new Error(`Impossible de se connecter à PostgreSQL: ${connError.message}`);
+    }
+    
     // Lire et exécuter le schéma
     const schemaPath = path.join(__dirname, 'schema.sql');
+    if (!fs.existsSync(schemaPath)) {
+      throw new Error(`Fichier schema.sql introuvable: ${schemaPath}`);
+    }
+    
     const schema = fs.readFileSync(schemaPath, 'utf8');
+    console.log('📄 Exécution du schéma SQL...');
+    
+    // Exécuter le schéma en une seule transaction
     await pool.query(schema);
+    console.log('✅ Schéma SQL exécuté avec succès');
     
     // Créer les utilisateurs admin s'ils n'existent pas
     const adminUsers = [
@@ -90,8 +107,22 @@ export async function initializeDatabase() {
     }
     
     console.log('✅ Base de données initialisée avec succès!');
+    
+    // Vérifier que les tables existent
+    const tablesCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    console.log('📊 Tables créées:', tablesCheck.rows.map(r => r.table_name).join(', '));
+    
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation:', error);
+    console.error('❌ Détails:', error.message);
+    if (error.stack) {
+      console.error('❌ Stack:', error.stack);
+    }
     throw error;
   }
 }

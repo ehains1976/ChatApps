@@ -17,16 +17,19 @@ import pool from './database/connection.js';
 let dbInitialized = false;
 async function start() {
   try {
+    console.log('🔄 Démarrage de l\'initialisation de la base de données...');
     await initializeDatabase();
     dbInitialized = true;
-    console.log('✅ Base de données initialisée');
+    console.log('✅ Base de données initialisée avec succès!');
   } catch (error) {
-    console.error('⚠️ Erreur initialisation DB:', error.message);
-    console.log('⚠️ Le backend continue sans initialisation automatique');
-    console.log('⚠️ Les tables doivent être créées manuellement');
+    console.error('❌ ERREUR CRITIQUE lors de l\'initialisation DB:', error);
+    console.error('❌ Stack trace:', error.stack);
+    console.error('⚠️ Le backend continue mais les tables peuvent ne pas exister');
+    console.error('⚠️ Vérifiez les logs ci-dessus et créez les tables manuellement si nécessaire');
+    // Ne pas bloquer le démarrage, mais loguer l'erreur complète
   }
 }
-start();
+
 
 // Fonction pour gérer les requêtes CORS
 function setCORSHeaders(res) {
@@ -552,11 +555,34 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// Démarrer le serveur
-server.listen(PORT, () => {
-  console.log(`🚀 Serveur VertProjet démarré sur le port ${PORT}`);
-  console.log(`📊 API disponible sur http://localhost:${PORT}/api`);
-  console.log(`💾 Base de données: ${process.env.DATABASE_URL ? 'PostgreSQL (Railway)' : 'Locale'}`);
+// Démarrer le serveur seulement après l'initialisation de la DB
+let serverStarted = false;
+
+async function startServer() {
+  if (serverStarted) return;
+  
+  // Attendre un peu pour s'assurer que l'initialisation est terminée
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  if (!dbInitialized) {
+    console.warn('⚠️ Démarrage du serveur sans initialisation DB complète');
+  }
+  
+  server.listen(PORT, () => {
+    serverStarted = true;
+    console.log(`🚀 Serveur ChatApps démarré sur le port ${PORT}`);
+    console.log(`📊 API disponible sur http://localhost:${PORT}/api`);
+    console.log(`💾 Base de données: ${process.env.DATABASE_URL ? 'PostgreSQL (Railway)' : 'Locale'}`);
+  });
+}
+
+// Démarrer le serveur après l'initialisation
+start().then(() => {
+  startServer();
+}).catch((err) => {
+  console.error('❌ Erreur fatale lors de l\'initialisation:', err);
+  // Démarrer quand même le serveur pour voir les erreurs
+  startServer();
 });
 
 process.on('SIGINT', () => {
