@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Bell, Search, User, Settings, LogOut } from 'lucide-react';
+import { Bell, Search, User, Settings } from 'lucide-react';
 
 interface HeaderProps {
   user?: any;
@@ -17,14 +17,14 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
     >
       <div className="flex items-center justify-between">
         {/* Logo & Title */}
-        <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center">
-              <span className="text-white font-bold text-lg">V</span>
+              <span className="text-white font-bold text-lg">C</span>
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">VertProjet</h1>
-              <p className="text-sm text-slate-500">Gestion de Projets TI</p>
+              <h1 className="text-2xl font-bold text-slate-800">ChatApps</h1>
+              <p className="text-sm text-slate-500">Gestion de Projets & Tâches</p>
             </div>
           </div>
         </div>
@@ -76,18 +76,6 @@ const Header: React.FC<HeaderProps> = ({ user, onLogout }) => {
             </div>
           </motion.div>
 
-          {/* Logout Button */}
-          {onLogout && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={onLogout}
-              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-              title="Déconnexion"
-            >
-              <LogOut className="w-5 h-5" />
-            </motion.button>
-          )}
         </div>
       </div>
     </motion.header>

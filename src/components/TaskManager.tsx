@@ -11,7 +11,8 @@ import {
   AlertCircle,
   Edit,
   Trash2,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import Card from './ui/Card';
 
@@ -136,7 +137,20 @@ const TaskManager: React.FC = () => {
     try {
       const response = await fetch(`/api/projects/${projectId}`);
       const project = await response.json();
-      setMilestones(project.milestones || []);
+      // Normaliser les jalons : s'assurer qu'ils sont des objets avec id
+      const milestonesData = project.milestones || [];
+      const normalizedMilestones = milestonesData
+        .filter((m: any) => m != null)
+        .map((m: any) => {
+          if (typeof m === 'string') {
+            // Si c'est une string, on ne peut pas l'utiliser car il n'y a pas d'id
+            return null;
+          }
+          // S'assurer que l'objet a un id valide
+          return m && m.id != null ? m : null;
+        })
+        .filter((m: any) => m != null);
+      setMilestones(normalizedMilestones);
     } catch (error) {
       console.error('Erreur lors du chargement des jalons:', error);
       setMilestones([]);
@@ -222,32 +236,50 @@ const TaskManager: React.FC = () => {
       const res = await fetch(`/api/tasks/${taskId}/notes`);
       if (res.ok) {
         const data = await res.json();
-        setNotes(data || []);
+        setNotes(Array.isArray(data) ? data : []);
+      } else {
+        console.error('Erreur HTTP lors du chargement des notes:', res.status);
+        setNotes([]);
       }
     } catch (e) {
       console.error('Erreur chargement des notes:', e);
+      setNotes([]);
     }
   };
 
   const handleAddNote = async () => {
     if (!editingTask) return;
     const content = newNoteContent.trim();
-    if (!content) return;
+    if (!content) {
+      alert('Veuillez entrer le contenu de la note');
+      return;
+    }
     try {
+      const authorId = newNoteAuthorId && newNoteAuthorId !== '' ? Number(newNoteAuthorId) : null;
       const res = await fetch(`/api/tasks/${editingTask.id}/notes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, author_id: newNoteAuthorId || null })
+        body: JSON.stringify({ 
+          content, 
+          author_id: authorId 
+        })
       });
+      
       if (res.ok) {
         setNewNoteContent('');
         setNewNoteAuthorId('');
+        // Recharger les notes
         await fetchNotes(editingTask.id);
         // Rafraîchir la liste pour mettre à jour le badge de notes
         await fetchData();
+      } else {
+        const errorData = await res.json().catch(() => ({ message: 'Erreur inconnue' }));
+        console.error('Erreur lors de l\'ajout de la note:', errorData);
+        alert(`Erreur: ${errorData.message || 'Impossible d\'ajouter la note'}`);
       }
     } catch (e) {
       console.error('Erreur ajout note:', e);
+      alert('Une erreur est survenue lors de l\'ajout de la note');
     }
   };
 
@@ -255,6 +287,9 @@ const TaskManager: React.FC = () => {
     setEditingTask(null);
     setShowForm(false);
     setMilestones([]);
+    setNotes([]);
+    setNewNoteContent('');
+    setNewNoteAuthorId('');
     setFormData({
       title: '',
       description: '',
@@ -432,11 +467,15 @@ const TaskManager: React.FC = () => {
                     <div className="flex items-center space-x-3 mb-2">
                       <h3 className="text-lg font-semibold text-slate-800 flex items-center space-x-2">
                         <span>{task.title}</span>
-                        {(task as any).notes_count > 0 && (
-                          <span className="ml-2 inline-flex items-center justify-center text-[10px] leading-none px-2 py-1 rounded-full bg-amber-100 text-amber-700 border border-amber-200">
-                            {String((task as any).notes_count)} note{(task as any).notes_count > 1 ? 's' : ''}
-                          </span>
-                        )}
+                        {(() => {
+                          const notesCount = Number((task as any).notes_count) || 0;
+                          return notesCount > 0 ? (
+                            <span className="ml-2 inline-flex items-center justify-center gap-1 text-xs font-medium px-2 py-1 rounded-full bg-accent-100 text-accent-700 border border-accent-300">
+                              <MessageSquare className="w-3 h-3" />
+                              <span>{notesCount}</span>
+                            </span>
+                          ) : null;
+                        })()}
                       </h3>
                       <span className={`px-2 py-1 rounded text-xs font-medium border ${getStatusColor(task.status)}`}>
                         {getStatusIcon(task.status)}
@@ -593,16 +632,26 @@ const TaskManager: React.FC = () => {
                         Jalon
                       </label>
                       <select
-                        value={formData.milestone_id || ''}
-                        onChange={(e) => setFormData({ ...formData, milestone_id: e.target.value ? parseInt(e.target.value) : null })}
+                        value={formData.milestone_id ?? ''}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          const milestoneId = value === '' || value === 'null' ? null : (parseInt(value, 10) || null);
+                          setFormData({ ...formData, milestone_id: milestoneId });
+                        }}
                         className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         <option value="">Sans jalon</option>
-                        {milestones.map(milestone => (
-                          <option key={milestone.id} value={milestone.id}>
-                            {milestone.name}
-                          </option>
-                        ))}
+                        {milestones
+                          .filter(m => m && m.id != null)
+                          .map(milestone => {
+                            const name = typeof milestone === 'string' ? milestone : (milestone?.name || `Jalon ${milestone?.id || ''}`);
+                            const id = typeof milestone === 'object' && milestone?.id != null ? milestone.id : null;
+                            return id != null ? (
+                              <option key={id} value={id}>
+                                {name}
+                              </option>
+                            ) : null;
+                          })}
                       </select>
                     </div>
                   )}
@@ -708,14 +757,17 @@ const TaskManager: React.FC = () => {
                     <h4 className="text-lg font-semibold text-slate-800">Notes</h4>
                     <div className="space-y-2">
                       {notes.length === 0 ? (
-                        <p className="text-slate-500">Aucune note pour l'instant.</p>
+                        <p className="text-slate-500 text-sm italic">Aucune note pour l'instant.</p>
                       ) : (
-                        <div className="space-y-2 max-h-48 overflow-y-auto border rounded-md p-3 border-slate-200 bg-slate-50">
+                        <div className="space-y-3 max-h-64 overflow-y-auto border rounded-lg p-4 border-slate-200 bg-slate-50">
                           {notes.map((n) => (
-                            <div key={n.id} className="text-sm">
-                              <div className="text-slate-700 whitespace-pre-wrap">{n.content}</div>
-                              <div className="text-slate-500 mt-1">
-                                Par {n.prenom && n.nom ? `${n.prenom} ${n.nom}` : 'Inconnu'} · {toDateInput(n.created_at)}
+                            <div key={n.id} className="border-l-4 border-primary-400 pl-3 py-2 bg-white rounded-r-md">
+                              <div className="text-slate-800 whitespace-pre-wrap text-sm mb-2">{n.content}</div>
+                              <div className="text-xs text-slate-500 flex items-center gap-2">
+                                <User className="w-3 h-3" />
+                                <span>{n.prenom && n.nom ? `${n.prenom} ${n.nom}` : 'Auteur inconnu'}</span>
+                                <span>·</span>
+                                <span>{new Date(n.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
                             </div>
                           ))}
@@ -736,7 +788,7 @@ const TaskManager: React.FC = () => {
                         <select
                           value={newNoteAuthorId}
                           onChange={(e) => setNewNoteAuthorId(e.target.value ? parseInt(e.target.value) : '')}
-                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+                          className="w-full px-3 py-2 border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
                         >
                           <option value="">Auteur (optionnel)</option>
                           {users.map(u => (
@@ -746,12 +798,9 @@ const TaskManager: React.FC = () => {
                         <button
                           type="button"
                           onClick={handleAddNote}
-                          className="w-full px-3 py-2 text-white rounded-md"
-                          style={{ backgroundColor: '#16a34a' }}
-                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803d'}
-                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+                          className="w-full px-3 py-2 text-white rounded-md bg-primary-600 hover:bg-primary-700 transition-colors text-sm font-medium"
                         >
-                          Ajouter la note
+                          Ajouter
                         </button>
                       </div>
                     </div>

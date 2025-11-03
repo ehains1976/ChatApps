@@ -3,6 +3,8 @@ import { motion } from 'framer-motion';
 import { Plus, Folder, TrendingUp, Calendar, Users, CheckCircle, Edit, Trash2, X, Eye } from 'lucide-react';
 import Card from './ui/Card';
 
+interface MilestoneObj { id?: number; name?: string; due_date?: string; completed?: boolean }
+interface MilestoneForm { name: string; due_date: string }
 interface Project {
   id: number;
   name: string;
@@ -20,7 +22,7 @@ interface Project {
   owner_courriel?: string;
   total_tasks: number;
   completed_tasks: number;
-  milestones: string[];
+  milestones: Array<string | MilestoneObj>;
 }
 
 interface ProjectsListProps {
@@ -50,7 +52,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
     team_size: 1,
     hours_allocated: 0,
     owner_id: null as number | null,
-    milestones: ''
+    milestones: [] as MilestoneForm[]
   });
 
   useEffect(() => {
@@ -97,7 +99,11 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
           ...formData,
           hours_allocated: Number(formData.hours_allocated) || 0,
           owner_id: formData.owner_id || null,
-          milestones: formData.milestones.split(',').map(m => m.trim())
+          milestones: Array.isArray(formData.milestones)
+            ? formData.milestones
+                .filter(m => (m.name || '').trim().length > 0)
+                .map(m => ({ name: m.name.trim(), due_date: m.due_date || null }))
+            : []
         })
       });
 
@@ -135,7 +141,12 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
       team_size: project.team_size,
       hours_allocated: project.hours_allocated || 0,
       owner_id: (project as any).owner_id || null,
-      milestones: project.milestones?.join(', ') || ''
+      milestones: Array.isArray(project.milestones)
+        ? project.milestones.map((m: any) => ({
+            name: typeof m === 'string' ? m : (m?.name || ''),
+            due_date: typeof m === 'string' ? '' : toDateInput(m?.due_date)
+          }))
+        : []
     });
     setShowForm(true);
   };
@@ -153,7 +164,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
       team_size: 1,
       hours_allocated: 0,
       owner_id: null,
-      milestones: ''
+      milestones: []
     });
   };
 
@@ -169,7 +180,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2" style={{ borderColor: '#16a34a' }}></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
       </div>
     );
   }
@@ -184,10 +195,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors shadow-lg"
-          style={{ backgroundColor: '#16a34a', color: 'white' }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803d'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors shadow-lg bg-primary-600 text-white hover:bg-primary-700"
         >
           <Plus className="w-5 h-5" />
           <span>Nouveau Projet</span>
@@ -213,8 +221,8 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                   {/* Header du projet */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="p-2 rounded-lg" style={{ backgroundColor: '#f0fdf4' }}>
-                        <Folder className="w-6 h-6" style={{ color: '#16a34a' }} />
+                      <div className="p-2 rounded-lg bg-primary-50">
+                        <Folder className="w-6 h-6 text-primary-600" />
                       </div>
                       <div>
                         <h3 className="text-xl font-semibold text-slate-800">{project.name}</h3>
@@ -250,7 +258,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                   <p className="text-slate-600 mb-4">{project.description}</p>
 
                   {/* Progression */}
-                  <div className="mb-4">
+                    <div className="mb-4">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-slate-700">Progression</span>
                       <span className="text-sm font-semibold text-slate-800">{computedProgress}%</span>
@@ -258,10 +266,8 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                     <div className="w-full bg-slate-200 rounded-full h-2.5">
                       <div 
                         className="rounded-full h-2.5 transition-all"
-                        style={{ 
-                          width: `${computedProgress}%`,
-                          backgroundColor: computedProgress === 100 ? '#16a34a' : '#2563eb'
-                        }}
+                          style={{ width: `${computedProgress}%` }}
+                          className={`${computedProgress === 100 ? 'bg-primary-600' : 'bg-blue-600'}`}
                       ></div>
                     </div>
                   </div>
@@ -278,13 +284,10 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                     </div>
                   </div>
 
-                  {/* Hours & Price + Owner */}
-                  <div className="grid grid-cols-3 gap-4 mb-4">
+                  {/* Hours + Owner */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="text-sm text-slate-600">
                       <span className="font-medium text-slate-700">Heures:</span> {project.hours_allocated ?? 0} h
-                    </div>
-                    <div className="text-sm text-slate-600">
-                      <span className="font-medium text-slate-700">Prix:</span> {(((project.hours_allocated ?? 0) * 170)).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}
                     </div>
                     <div className="text-sm text-slate-600 truncate">
                       <span className="font-medium text-slate-700">Responsable:</span> {project.owner_prenom} {project.owner_nom}
@@ -296,11 +299,14 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                     <div className="mb-4">
                       <span className="text-sm font-medium text-slate-700 mb-2 block">Jalons :</span>
                       <div className="flex flex-wrap gap-2">
-                        {project.milestones.slice(0, 3).map((milestone, idx) => (
-                          <span key={idx} className="px-2 py-1 bg-primary-50 text-primary-700 text-xs rounded-full border border-primary-200">
-                            {milestone}
-                          </span>
-                        ))}
+                        {project.milestones.slice(0, 3).map((milestone: any, idx: number) => {
+                          const label = typeof milestone === 'string' ? milestone : (milestone?.name ?? '');
+                          return (
+                            <span key={idx} className="px-2 py-1 bg-primary-50 text-primary-700 text-xs rounded-full border border-primary-200">
+                              {label}
+                            </span>
+                          );
+                        })}
                         {project.milestones.length > 3 && (
                           <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
                             +{project.milestones.length - 3} autres
@@ -436,7 +442,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                 {/* removed team size field */}
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">
                     Heures allouées
@@ -449,27 +455,58 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Prix estimé (170$/h)
-                  </label>
-                  <div className="w-full px-4 py-2 border border-slate-300 rounded-lg bg-slate-50">
-                    {((Number(formData.hours_allocated) || 0) * 170).toLocaleString('fr-CA', { style: 'currency', currency: 'CAD' })}
-                  </div>
-                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Jalons (séparés par des virgules)
+                  Jalons
                 </label>
-                  <input
-                    type="text"
-                    value={formData.milestones}
-                    onChange={(e) => setFormData({ ...formData, milestones: e.target.value })}
-                    placeholder="Revue initiale, Développement, Tests, Livraison"
-                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                  />
+                <div className="space-y-3">
+                  {formData.milestones.map((m, idx) => (
+                    <div key={idx} className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+                      <input
+                        type="text"
+                        placeholder={`Nom du jalon #${idx + 1}`}
+                        value={m.name}
+                        onChange={(e) => {
+                          const next = [...formData.milestones];
+                          next[idx] = { ...next[idx], name: e.target.value };
+                          setFormData({ ...formData, milestones: next });
+                        }}
+                        className="md:col-span-7 w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <input
+                        type="date"
+                        value={toDateInput(m.due_date)}
+                        onChange={(e) => {
+                          const next = [...formData.milestones];
+                          next[idx] = { ...next[idx], due_date: e.target.value };
+                          setFormData({ ...formData, milestones: next });
+                        }}
+                        className="md:col-span-4 w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = formData.milestones.filter((_, i) => i !== idx);
+                          setFormData({ ...formData, milestones: next });
+                        }}
+                        className="md:col-span-1 px-3 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors"
+                        title="Retirer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, milestones: [...formData.milestones, { name: '', due_date: '' }] })}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-lg border border-primary-200 text-primary-700 hover:bg-primary-50 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Ajouter un jalon</span>
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-end space-x-4 pt-4">
@@ -482,10 +519,7 @@ const ProjectsList: React.FC<ProjectsListProps> = ({ onProjectClick }) => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-white rounded-lg transition-colors"
-                  style={{ backgroundColor: '#16a34a' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#15803d'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#16a34a'}
+                  className="px-4 py-2 text-white rounded-lg transition-colors bg-primary-600 hover:bg-primary-700"
                 >
                   {editingProject ? 'Mettre à jour' : 'Créer'}
                 </button>

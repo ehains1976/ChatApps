@@ -6,7 +6,8 @@ import {
   CheckSquare, 
   Calendar, 
   BarChart3, 
-  Users
+  Users,
+  BookOpen
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -68,6 +69,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage }) => {
     { icon: FolderOpen, label: 'Projets', page: 'projects', count: counts.projects },
     { icon: CheckSquare, label: 'Tâches', page: 'tasks', count: counts.tasks },
     { icon: Calendar, label: 'Calendrier', page: 'calendar', count: counts.calendar },
+    { icon: BookOpen, label: 'Journal d\'Opérations', page: 'operations', count: 0 },
     { icon: BarChart3, label: 'Rapports', page: 'reports', count: 0 },
     { icon: Users, label: 'Équipe', page: 'team', count: counts.users },
   ];

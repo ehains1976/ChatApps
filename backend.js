@@ -10,11 +10,8 @@ import { initializeDatabase } from './database/init.js';
 
 const PORT = process.env.PORT || 3001;
 
-// Pool de connexions PostgreSQL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
-});
+// Importer la connexion depuis database/connection.js qui gère mieux les différents environnements
+import pool from './database/connection.js';
 
 // Initialiser la base de données au démarrage
 let dbInitialized = false;

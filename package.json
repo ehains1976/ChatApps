@@ -4,11 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "backend": "node backend.js",
+    "backend": "node simple-backend.js",
+    "backend:db": "node backend.js",
     "frontend": "vite",
     "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "dev:db": "concurrently \"npm run backend:db\" \"npm run frontend\"",
     "build": "vite build",
-    "start": "node backend.js",
+    "start": "node simple-backend.js",
+    "start:db": "node backend.js",
     "migrate": "node database/migrate.js",
     "lint": "eslint .",
     "preview": "vite preview"
