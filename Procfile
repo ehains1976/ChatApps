@@ -1,2 +1,2 @@
-web: node simple-backend.js
+web: node backend.js
 

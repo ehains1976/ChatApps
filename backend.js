@@ -140,8 +140,13 @@ const routes = {
   // Routes Users
   async '/api/users'(req, res, method) {
     if (method === 'GET') {
-      const result = await pool.query('SELECT id, prenom, nom, entreprise, courriel FROM users');
-      sendJSON(res, result.rows);
+      try {
+        const result = await pool.query('SELECT id, prenom, nom, entreprise, courriel FROM users');
+        sendJSON(res, result.rows || []);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des utilisateurs:', error);
+        sendJSON(res, []); // Retourner un tableau vide au lieu d'une erreur 500
+      }
     } else if (method === 'POST') {
       const body = await parseBody(req);
       const result = await pool.query(
@@ -177,16 +182,21 @@ const routes = {
   // Routes Projects
   async '/api/projects'(req, res, method) {
     if (method === 'GET') {
-      const result = await pool.query(`
-        SELECT p.*, u.prenom as owner_prenom, u.nom as owner_nom, u.courriel as owner_courriel,
-               (SELECT json_agg(m.name) FROM milestones m WHERE m.project_id = p.id) as milestones,
-               (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as total_tasks,
-               (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'Terminé') as completed_tasks
-        FROM projects p
-        LEFT JOIN users u ON p.owner_id = u.id
-        ORDER BY p.id
-      `);
-      sendJSON(res, result.rows);
+      try {
+        const result = await pool.query(`
+          SELECT p.*, u.prenom as owner_prenom, u.nom as owner_nom, u.courriel as owner_courriel,
+                 (SELECT json_agg(m.name) FROM milestones m WHERE m.project_id = p.id) as milestones,
+                 (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as total_tasks,
+                 (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id AND t.status = 'Terminé') as completed_tasks
+          FROM projects p
+          LEFT JOIN users u ON p.owner_id = u.id
+          ORDER BY p.id
+        `);
+        sendJSON(res, result.rows || []);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des projets:', error);
+        sendJSON(res, []); // Retourner un tableau vide au lieu d'une erreur 500
+      }
     } else if (method === 'POST') {
       try {
         const body = await parseBody(req);
@@ -318,42 +328,47 @@ const routes = {
   // Routes Tasks avec many-to-many responsables
   async '/api/tasks'(req, res, method, params, query) {
     if (method === 'GET') {
-      let querySQL = `
-        SELECT t.*, 
-               p.name as project_name,
-               (SELECT json_agg(json_build_object('id', u.id, 'prenom', u.prenom, 'nom', u.nom))
-                FROM users u
-                JOIN task_responsibles tr ON u.id = tr.user_id
-                WHERE tr.task_id = t.id) as responsables,
-               (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id) as notes_count
-        FROM tasks t
-        LEFT JOIN projects p ON t.project_id = p.id
-        WHERE 1=1
-      `;
-      const queryParams = [];
-      let paramIndex = 1;
+      try {
+        let querySQL = `
+          SELECT t.*, 
+                 p.name as project_name,
+                 (SELECT json_agg(json_build_object('id', u.id, 'prenom', u.prenom, 'nom', u.nom))
+                  FROM users u
+                  JOIN task_responsibles tr ON u.id = tr.user_id
+                  WHERE tr.task_id = t.id) as responsables,
+                 (SELECT COUNT(*) FROM task_notes n WHERE n.task_id = t.id) as notes_count
+          FROM tasks t
+          LEFT JOIN projects p ON t.project_id = p.id
+          WHERE 1=1
+        `;
+        const queryParams = [];
+        let paramIndex = 1;
 
-      if (query.responsible_id) {
-        querySQL += ` AND EXISTS (SELECT 1 FROM task_responsibles tr WHERE tr.task_id = t.id AND tr.user_id = $${paramIndex})`;
-        queryParams.push(parseInt(query.responsible_id));
-        paramIndex++;
-      }
-      
-      if (query.project_id) {
-        querySQL += ` AND t.project_id = $${paramIndex}`;
-        queryParams.push(parseInt(query.project_id));
-        paramIndex++;
-      }
-      
-      if (query.status) {
-        querySQL += ` AND t.status = $${paramIndex}`;
-        queryParams.push(query.status);
-        paramIndex++;
-      }
+        if (query.responsible_id) {
+          querySQL += ` AND EXISTS (SELECT 1 FROM task_responsibles tr WHERE tr.task_id = t.id AND tr.user_id = $${paramIndex})`;
+          queryParams.push(parseInt(query.responsible_id));
+          paramIndex++;
+        }
+        
+        if (query.project_id) {
+          querySQL += ` AND t.project_id = $${paramIndex}`;
+          queryParams.push(parseInt(query.project_id));
+          paramIndex++;
+        }
+        
+        if (query.status) {
+          querySQL += ` AND t.status = $${paramIndex}`;
+          queryParams.push(query.status);
+          paramIndex++;
+        }
 
-      querySQL += ' ORDER BY t.id';
-      const result = await pool.query(querySQL, queryParams);
-      sendJSON(res, result.rows);
+        querySQL += ' ORDER BY t.id';
+        const result = await pool.query(querySQL, queryParams);
+        sendJSON(res, result.rows || []);
+      } catch (error) {
+        console.error('Erreur lors de la récupération des tâches:', error);
+        sendJSON(res, []); // Retourner un tableau vide au lieu d'une erreur 500
+      }
     } else if (method === 'POST') {
       const body = await parseBody(req);
       const result = await pool.query(

@@ -32,9 +32,15 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage }) => {
           fetch('/api/users')
         ]);
 
-        const projects = await projectsRes.json();
-        const tasks = await tasksRes.json();
-        const users = await usersRes.json();
+        // Vérifier les status HTTP et parser les réponses
+        const projectsData = projectsRes.ok ? await projectsRes.json() : { error: true };
+        const tasksData = tasksRes.ok ? await tasksRes.json() : { error: true };
+        const usersData = usersRes.ok ? await usersRes.json() : { error: true };
+
+        // S'assurer que les données sont des tableaux
+        const projects = Array.isArray(projectsData) ? projectsData : [];
+        const tasks = Array.isArray(tasksData) ? tasksData : [];
+        const users = Array.isArray(usersData) ? usersData : [];
 
         // Compter les événements du calendrier (projets avec delivery_date + tâches avec due_date)
         const today = new Date();
@@ -54,6 +60,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onNavigate, currentPage }) => {
         });
       } catch (error) {
         console.error('Erreur lors du chargement des compteurs:', error);
+        // Valeurs par défaut en cas d'erreur
+        setCounts({
+          projects: 0,
+          tasks: 0,
+          users: 0,
+          calendar: 0
+        });
       }
     };
 

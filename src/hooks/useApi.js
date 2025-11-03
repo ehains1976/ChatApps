@@ -22,8 +22,17 @@ export const useDashboardStats = () => {
           fetch('/api/tasks')
         ]);
         
-        const projects = await projectsResponse.json();
-        const tasks = await tasksResponse.json();
+        // Vérifier les status HTTP
+        if (!projectsResponse.ok || !tasksResponse.ok) {
+          throw new Error('Erreur HTTP lors du chargement des données');
+        }
+        
+        const projectsData = await projectsResponse.json();
+        const tasksData = await tasksResponse.json();
+        
+        // S'assurer que les données sont des tableaux
+        const projects = Array.isArray(projectsData) ? projectsData : (projectsData?.error ? [] : []);
+        const tasks = Array.isArray(tasksData) ? tasksData : (tasksData?.error ? [] : []);
         
         // Calculer les statistiques
         const today = new Date();
@@ -55,6 +64,13 @@ export const useDashboardStats = () => {
       } catch (err) {
         setError(err.message);
         console.error('Erreur lors du chargement des statistiques:', err);
+        // Mettre des valeurs par défaut en cas d'erreur
+        setStats({
+          tasksInProgress: 0,
+          tasksCompleted: 0,
+          tasksOverdue: 0,
+          activeProjects: 0
+        });
       } finally {
         setLoading(false);
       }
@@ -81,12 +97,18 @@ export const useProjects = () => {
       try {
         setLoading(true);
         const response = await fetch('/api/projects');
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
+        }
         const data = await response.json();
-        setProjects(data);
+        // S'assurer que les données sont un tableau
+        const projectsData = Array.isArray(data) ? data : (data?.error ? [] : []);
+        setProjects(projectsData);
         setError(null);
       } catch (err) {
         setError(err.message);
         console.error('Erreur lors du chargement des projets:', err);
+        setProjects([]); // Tableau vide en cas d'erreur
       } finally {
         setLoading(false);
       }
@@ -113,12 +135,18 @@ export const useTasks = () => {
       try {
         setLoading(true);
         const response = await fetch('/api/tasks');
+        if (!response.ok) {
+          throw new Error(`Erreur HTTP: ${response.status}`);
+        }
         const data = await response.json();
-        setTasks(data);
+        // S'assurer que les données sont un tableau
+        const tasksData = Array.isArray(data) ? data : (data?.error ? [] : []);
+        setTasks(tasksData);
         setError(null);
       } catch (err) {
         setError(err.message);
         console.error('Erreur lors du chargement des tâches:', err);
+        setTasks([]); // Tableau vide en cas d'erreur
       } finally {
         setLoading(false);
       }
