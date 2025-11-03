@@ -96,7 +96,18 @@ function getConnectionString() {
   return defaultUrl;
 }
 
-const connectionString = getConnectionString();
+let connectionString;
+try {
+  connectionString = getConnectionString();
+} catch (error) {
+  // En production Railway, ne pas continuer sans connexion
+  if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+    console.error('❌ ERREUR FATALE: Impossible de construire la connexion PostgreSQL');
+    throw error; // Relancer l'erreur pour arrêter le démarrage
+  }
+  // En local, utiliser la valeur par défaut
+  connectionString = 'postgresql://postgres:postgres@localhost:5432/vertprojet_bd';
+}
 
 // Extraire le nom de la base de données de l'URL
 let dbName = 'INCONNU';
@@ -114,17 +125,19 @@ if (connectionString) {
 console.log('🔌 Connexion à PostgreSQL:', connectionString ? connectionString.replace(/:[^:@]+@/, ':****@') : 'ERREUR');
 console.log('📊 Base de données cible:', dbName);
 
-// Vérifier que c'est bien ChatApps_BD en production
-if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+// Vérifier que c'est bien ChatApps_BD en production Railway
+const isRailwayProd = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+if (isRailwayProd) {
   if (dbName !== 'ChatApps_BD' && dbName !== 'INCONNU') {
-    console.warn('⚠️ ATTENTION: Connexion à', dbName, 'au lieu de ChatApps_BD');
+    console.error('❌ ERREUR: Connexion à', dbName, 'au lieu de ChatApps_BD');
+    console.error('❌ DATABASE_URL doit pointer vers ChatApps_BD');
+    throw new Error(`Connexion à la mauvaise base de données: ${dbName}. Attendu: ChatApps_BD`);
   } else if (dbName === 'ChatApps_BD') {
     console.log('✅ Confirmation: Connexion à ChatApps_BD');
   }
 }
 
 // Déterminer si on est en production (Railway) ou développement local
-const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
 const isLocalhost = connectionString && (connectionString.includes('localhost') || connectionString.includes('127.0.0.1'));
 
 const pool = new Pool({

@@ -18,15 +18,30 @@ let dbInitialized = false;
 async function start() {
   try {
     console.log('🔄 Démarrage de l\'initialisation de la base de données...');
+    
+    // Vérifier que la connexion est valide avant d'essayer d'initialiser
+    const isRailwayProd = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+    if (isRailwayProd) {
+      console.log('🌐 Vérification de la connexion en production Railway...');
+    }
+    
     await initializeDatabase();
     dbInitialized = true;
     console.log('✅ Base de données initialisée avec succès!');
   } catch (error) {
     console.error('❌ ERREUR CRITIQUE lors de l\'initialisation DB:', error);
     console.error('❌ Stack trace:', error.stack);
+    
+    // En production Railway, si c'est une erreur de configuration, arrêter
+    const isRailwayProd = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+    if (isRailwayProd && (error.message.includes('Configuration PostgreSQL manquante') || error.message.includes('mauvaise base de données'))) {
+      console.error('❌ ARRÊT: Configuration PostgreSQL incorrecte en production');
+      console.error('❌ Définissez DATABASE_URL dans Railway Dashboard → Service → Variables');
+      throw error; // Arrêter le démarrage
+    }
+    
     console.error('⚠️ Le backend continue mais les tables peuvent ne pas exister');
     console.error('⚠️ Vérifiez les logs ci-dessus et créez les tables manuellement si nécessaire');
-    // Ne pas bloquer le démarrage, mais loguer l'erreur complète
   }
 }
 
