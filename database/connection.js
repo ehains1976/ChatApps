@@ -23,7 +23,12 @@ function getConnectionString() {
   }
   
   // En production Railway, accepter toutes les DATABASE_URL
-  const isRailwayProduction = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+  // Détecter Railway via RAILWAY_ENVIRONMENT (plus fiable que NODE_ENV)
+  const isRailwayProduction = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+  
+  if (isRailwayProduction) {
+    console.log('🌐 Mode Railway détecté');
+  }
   
   // Méthode 1: DATABASE_URL directe (PRIORITÉ pour développement local et production)
   if (process.env.DATABASE_URL) {
@@ -78,8 +83,10 @@ function getConnectionString() {
   // En production Railway, ne JAMAIS utiliser cette valeur par défaut
   if (isRailwayProduction) {
     console.error('❌ ERREUR CRITIQUE: Aucune variable de connexion PostgreSQL trouvée en production Railway!');
+    console.error('❌ Variables disponibles:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('PG') || k.includes('RAILWAY')).join(', ') || 'AUCUNE');
     console.error('❌ Vérifiez que DATABASE_URL ou PGHOST/PGUSER/etc. sont définies dans Railway');
-    throw new Error('Configuration PostgreSQL manquante en production');
+    console.error('❌ Allez dans Railway Dashboard → Service → Variables → Ajoutez DATABASE_URL');
+    throw new Error('Configuration PostgreSQL manquante en production Railway. Définissez DATABASE_URL dans Railway.');
   }
   
   const defaultUrl = 'postgresql://postgres:postgres@localhost:5432/vertprojet_bd';

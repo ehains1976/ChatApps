@@ -18,5 +18,8 @@
     "production": {
       "NODE_ENV": "production"
     }
+  },
+  "variables": {
+    "NODE_ENV": "production"
   }
 }
