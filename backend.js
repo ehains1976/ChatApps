@@ -509,10 +509,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Healthcheck endpoint pour Railway
+  if (pathname === '/health' || pathname === '/healthcheck') {
+    setCORSHeaders(res);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ 
+      status: 'ok', 
+      timestamp: new Date().toISOString(),
+      database: dbInitialized ? 'connected' : 'not initialized'
+    }));
+    return;
+  }
+
   // Servir index.html pour le routing React
   if (pathname === '/' || !pathname.startsWith('/api')) {
     fs.readFile('./dist/index.html', (err, data) => {
       if (err) {
+        // Si index.html n'existe pas, retourner quand même 200 pour le healthcheck
+        if (pathname === '/') {
+          setCORSHeaders(res);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ 
+            status: 'ok', 
+            message: 'Server running, frontend building...',
+            database: dbInitialized ? 'connected' : 'not initialized'
+          }));
+          return;
+        }
         sendError(res, 'Application non trouvée', 404);
         return;
       }
@@ -555,14 +578,14 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// Démarrer le serveur seulement après l'initialisation de la DB
+// Démarrer le serveur (même si la DB échoue, pour que le healthcheck fonctionne)
 let serverStarted = false;
 
 async function startServer() {
   if (serverStarted) return;
   
   // Attendre un peu pour s'assurer que l'initialisation est terminée
-  await new Promise(resolve => setTimeout(resolve, 1000));
+  await new Promise(resolve => setTimeout(resolve, 2000));
   
   if (!dbInitialized) {
     console.warn('⚠️ Démarrage du serveur sans initialisation DB complète');
@@ -576,12 +599,14 @@ async function startServer() {
   });
 }
 
-// Démarrer le serveur après l'initialisation
+// Démarrer le serveur même si la DB échoue (pour que le healthcheck fonctionne)
 start().then(() => {
+  console.log('✅ Initialisation DB terminée, démarrage du serveur...');
   startServer();
 }).catch((err) => {
-  console.error('❌ Erreur fatale lors de l\'initialisation:', err);
-  // Démarrer quand même le serveur pour voir les erreurs
+  console.error('❌ Erreur lors de l\'initialisation DB:', err);
+  console.warn('⚠️ Démarrage du serveur quand même pour permettre le healthcheck');
+  // Démarrer quand même le serveur pour que Railway puisse vérifier la santé
   startServer();
 });
 
