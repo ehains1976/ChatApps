@@ -10,6 +10,18 @@ function getConnectionString() {
   console.log('🔍 RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT || 'NON');
   console.log('🔍 NODE_ENV:', process.env.NODE_ENV || 'NON');
   
+  // Afficher toutes les variables Railway pour debug
+  const railwayVars = Object.keys(process.env).filter(k => k.includes('RAILWAY'));
+  console.log('🔍 Variables Railway:', railwayVars.join(', ') || 'AUCUNE');
+  
+  // Afficher DATABASE_URL si elle existe (masquée)
+  if (process.env.DATABASE_URL) {
+    const masked = process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@');
+    console.log('🔍 DATABASE_URL trouvée:', masked.substring(0, 80) + '...');
+  } else {
+    console.log('❌ DATABASE_URL ABSENTE dans process.env');
+  }
+  
   // En production Railway, accepter toutes les DATABASE_URL
   const isRailwayProduction = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
   
@@ -32,12 +44,14 @@ function getConnectionString() {
   if (process.env.PGHOST) {
     const host = process.env.PGHOST;
     const port = process.env.PGPORT || '5432';
-    const database = process.env.PGDATABASE || 'railway';
+    // Forcer ChatApps_BD au lieu de 'railway' par défaut
+    const database = process.env.PGDATABASE || 'ChatApps_BD';
     const user = process.env.PGUSER || 'postgres';
     const password = process.env.PGPASSWORD || '';
     
     const url = `postgresql://${user}:${password}@${host}:${port}/${database}`;
     console.log('📡 Construction URL depuis variables PG* Railway');
+    console.log('📡 Base de données:', database);
     return url;
   }
   
@@ -61,6 +75,13 @@ function getConnectionString() {
   }
   
   // Méthode 5: Valeur par défaut pour développement local (si PostgreSQL est sur localhost)
+  // En production Railway, ne JAMAIS utiliser cette valeur par défaut
+  if (isRailwayProduction) {
+    console.error('❌ ERREUR CRITIQUE: Aucune variable de connexion PostgreSQL trouvée en production Railway!');
+    console.error('❌ Vérifiez que DATABASE_URL ou PGHOST/PGUSER/etc. sont définies dans Railway');
+    throw new Error('Configuration PostgreSQL manquante en production');
+  }
+  
   const defaultUrl = 'postgresql://postgres:postgres@localhost:5432/vertprojet_bd';
   console.warn('⚠️ Aucune variable de connexion PostgreSQL trouvée');
   console.warn('⚠️ Tentative avec la configuration par défaut locale:', defaultUrl.replace(/:[^:@]+@/, ':****@'));
