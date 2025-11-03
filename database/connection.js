@@ -69,7 +69,31 @@ function getConnectionString() {
 }
 
 const connectionString = getConnectionString();
+
+// Extraire le nom de la base de données de l'URL
+let dbName = 'INCONNU';
+if (connectionString) {
+  try {
+    const url = new URL(connectionString.replace('postgresql://', 'http://'));
+    dbName = url.pathname.replace('/', '');
+  } catch (e) {
+    // Fallback: extraire manuellement
+    const match = connectionString.match(/\/([^\/\?]+)(\?|$)/);
+    if (match) dbName = match[1];
+  }
+}
+
 console.log('🔌 Connexion à PostgreSQL:', connectionString ? connectionString.replace(/:[^:@]+@/, ':****@') : 'ERREUR');
+console.log('📊 Base de données cible:', dbName);
+
+// Vérifier que c'est bien ChatApps_BD en production
+if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+  if (dbName !== 'ChatApps_BD' && dbName !== 'INCONNU') {
+    console.warn('⚠️ ATTENTION: Connexion à', dbName, 'au lieu de ChatApps_BD');
+  } else if (dbName === 'ChatApps_BD') {
+    console.log('✅ Confirmation: Connexion à ChatApps_BD');
+  }
+}
 
 // Déterminer si on est en production (Railway) ou développement local
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
