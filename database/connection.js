@@ -81,11 +81,16 @@ function getConnectionString() {
   
   // Méthode 5: Valeur par défaut pour développement local (si PostgreSQL est sur localhost)
   // En production Railway, ne JAMAIS utiliser cette valeur par défaut
+  console.log('🔍 Vérification finale: isRailwayProduction =', isRailwayProduction);
+  console.log('🔍 RAILWAY_ENVIRONMENT value:', process.env.RAILWAY_ENVIRONMENT);
+  console.log('🔍 NODE_ENV value:', process.env.NODE_ENV);
+  
   if (isRailwayProduction) {
     console.error('❌ ERREUR CRITIQUE: Aucune variable de connexion PostgreSQL trouvée en production Railway!');
     console.error('❌ Variables disponibles:', Object.keys(process.env).filter(k => k.includes('DATABASE') || k.includes('PG') || k.includes('RAILWAY')).join(', ') || 'AUCUNE');
     console.error('❌ Vérifiez que DATABASE_URL ou PGHOST/PGUSER/etc. sont définies dans Railway');
     console.error('❌ Allez dans Railway Dashboard → Service → Variables → Ajoutez DATABASE_URL');
+    console.error('❌ Valeur DATABASE_URL requise: postgresql://postgres:XEdudbwfBeasNUKlupcKYcCHbGuTNrAL@centerbeam.proxy.rlwy.net:58257/ChatApps_BD');
     throw new Error('Configuration PostgreSQL manquante en production Railway. Définissez DATABASE_URL dans Railway.');
   }
   
@@ -101,11 +106,16 @@ try {
   connectionString = getConnectionString();
 } catch (error) {
   // En production Railway, ne pas continuer sans connexion
-  if (process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production') {
+  const isRailwayProd = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+  console.log('🔍 Erreur lors de getConnectionString(), isRailwayProd =', isRailwayProd);
+  
+  if (isRailwayProd) {
     console.error('❌ ERREUR FATALE: Impossible de construire la connexion PostgreSQL');
+    console.error('❌ L\'application ne peut pas démarrer sans configuration DB valide');
     throw error; // Relancer l'erreur pour arrêter le démarrage
   }
   // En local, utiliser la valeur par défaut
+  console.warn('⚠️ Utilisation de la valeur par défaut locale');
   connectionString = 'postgresql://postgres:postgres@localhost:5432/vertprojet_bd';
 }
 
