@@ -7,11 +7,25 @@ function getConnectionString() {
   // DEBUG: Afficher toutes les variables PostgreSQL disponibles
   const pgVars = Object.keys(process.env).filter(k => k.includes('PG') || k.includes('POSTGRES') || k.includes('DATABASE'));
   console.log('🔍 Variables PostgreSQL disponibles:', pgVars.join(', ') || 'AUCUNE');
+  console.log('🔍 RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT || 'NON');
+  console.log('🔍 NODE_ENV:', process.env.NODE_ENV || 'NON');
+  
+  // En production Railway, accepter toutes les DATABASE_URL
+  const isRailwayProduction = process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
   
   // Méthode 1: DATABASE_URL directe (PRIORITÉ pour développement local et production)
-  if (process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('railway.internal')) {
-    console.log('📡 Utilisation de DATABASE_URL');
-    return process.env.DATABASE_URL;
+  if (process.env.DATABASE_URL) {
+    console.log('📡 DATABASE_URL trouvée, longueur:', process.env.DATABASE_URL.length);
+    // En production Railway, accepter toutes les DATABASE_URL
+    if (isRailwayProduction) {
+      console.log('📡 Utilisation de DATABASE_URL (Railway production)');
+      return process.env.DATABASE_URL;
+    }
+    // En local, exclure railway.internal
+    if (!process.env.DATABASE_URL.includes('railway.internal')) {
+      console.log('📡 Utilisation de DATABASE_URL (local)');
+      return process.env.DATABASE_URL;
+    }
   }
   
   // Méthode 2: Railway variables automatiques (PG*) - pour Railway
