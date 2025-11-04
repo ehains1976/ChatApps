@@ -468,6 +468,50 @@ const routes = {
       );
       sendJSON(res, { id: result.rows[0].id, created_at: result.rows[0].created_at }, 201);
     }
+  },
+  
+  // Route de debug pour vérifier la base de données
+  async '/api/debug/db'(req, res, method) {
+    if (method === 'GET') {
+      try {
+        // Vérifier les tables
+        const tablesResult = await pool.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public'
+          ORDER BY table_name
+        `);
+        
+        // Compter les données dans chaque table
+        const tableCounts = {};
+        for (const row of tablesResult.rows) {
+          try {
+            const countResult = await pool.query(`SELECT COUNT(*) as count FROM ${row.table_name}`);
+            tableCounts[row.table_name] = parseInt(countResult.rows[0].count);
+          } catch (e) {
+            tableCounts[row.table_name] = 'error: ' + e.message;
+          }
+        }
+        
+        // Vérifier les utilisateurs
+        const usersResult = await pool.query('SELECT id, prenom, nom, courriel, role FROM users ORDER BY id');
+        
+        // Vérifier la base de données actuelle
+        const dbResult = await pool.query('SELECT current_database() as db_name');
+        
+        sendJSON(res, {
+          database: dbResult.rows[0].db_name,
+          tables: tablesResult.rows.map(r => r.table_name),
+          tableCounts: tableCounts,
+          users: usersResult.rows,
+          totalTables: tablesResult.rows.length,
+          totalUsers: usersResult.rows.length
+        });
+      } catch (error) {
+        console.error('Erreur debug DB:', error);
+        sendError(res, error.message, 500);
+      }
+    }
   }
 };
 
