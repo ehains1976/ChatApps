@@ -20,6 +20,8 @@
     }
   },
   "variables": {
-    "NODE_ENV": "production"
+    "NODE_ENV": "production",
+    "RAILWAY_ENVIRONMENT": "production",
+    "DATABASE_URL": "postgresql://postgres:zJhVcnQkyiSQuHCoJQVdXeToBDsQcMnt@nozomi.proxy.rlwy.net:37174/ChatApps_BD"
   }
 }

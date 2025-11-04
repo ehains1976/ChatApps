@@ -9,6 +9,7 @@ interface User {
   nom: string;
   entreprise: string;
   courriel: string;
+  role?: string;
 }
 
 const UserManager: React.FC = () => {
@@ -21,7 +22,9 @@ const UserManager: React.FC = () => {
     prenom: '',
     nom: '',
     entreprise: '',
-    courriel: ''
+    courriel: '',
+    password: '',
+    role: 'user'
   });
 
   useEffect(() => {
@@ -81,7 +84,9 @@ const UserManager: React.FC = () => {
       prenom: user.prenom,
       nom: user.nom,
       entreprise: user.entreprise,
-      courriel: user.courriel
+      courriel: user.courriel,
+      password: '', // Ne pas pré-remplir le mot de passe pour la sécurité
+      role: (user as any).role || 'user'
     });
     setShowForm(true);
   };
@@ -93,7 +98,9 @@ const UserManager: React.FC = () => {
       prenom: '',
       nom: '',
       entreprise: '',
-      courriel: ''
+      courriel: '',
+      password: '',
+      role: 'user'
     });
   };
 
@@ -269,6 +276,39 @@ const UserManager: React.FC = () => {
                     onChange={(e) => setFormData({ ...formData, entreprise: e.target.value })}
                     className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
+                </div>
+
+                {/* Mot de passe */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Mot de passe {editingUser ? '(laisser vide pour ne pas changer)' : '*'}
+                  </label>
+                  <input
+                    type="password"
+                    required={!editingUser}
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder={editingUser ? "Laisser vide pour ne pas changer" : "Mot de passe requis"}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    Le mot de passe sera encrypté (hashé) dans la base de données
+                  </p>
+                </div>
+
+                {/* Rôle */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Rôle
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    <option value="user">Utilisateur</option>
+                    <option value="admin">Administrateur</option>
+                  </select>
                 </div>
 
                 {/* Boutons */}

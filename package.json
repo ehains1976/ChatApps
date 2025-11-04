@@ -13,6 +13,10 @@
     "start": "node simple-backend.js",
     "start:db": "node backend.js",
     "migrate": "node database/migrate.js",
+    "test:db": "node test-connection-externe.js",
+    "backup:db": "node backup-db.js",
+    "create:user": "node create-user-jmcaouette.js",
+    "railway:config": "node railway-config.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },

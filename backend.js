@@ -87,7 +87,9 @@ const routes = {
     if (method === 'POST') {
       try {
         const body = await parseBody(req);
-        console.log('Login attempt for:', body.email);
+        console.log('🔐 LOGIN - Tentative de connexion pour:', body.email);
+        console.log('  Email fourni:', body.email);
+        console.log('  Mot de passe fourni:', body.password ? '***' : 'MANQUANT');
         
         // Chercher l'utilisateur par email
         const userResult = await pool.query(
@@ -95,7 +97,12 @@ const routes = {
           [body.email]
         );
         
-        console.log('User found:', userResult.rows.length > 0);
+        console.log('  👤 Utilisateur trouvé:', userResult.rows.length > 0);
+        if (userResult.rows.length > 0) {
+          console.log('  → ID:', userResult.rows[0].id, 'Role:', userResult.rows[0].role);
+        } else {
+          console.log('  ❌ ÉCHEC: Aucun utilisateur trouvé avec cet email');
+        }
         
         if (userResult.rows.length === 0) {
           sendError(res, 'Courriel ou mot de passe incorrect', 401);
@@ -109,34 +116,36 @@ const routes = {
         const bcryptjs = bcrypt.default || bcrypt;
         let passwordHash = user.password_hash;
         
-        // Si le hash est manquant ou null
+        // Si le hash est manquant ou null, refuser la connexion
         if (!passwordHash || passwordHash === '') {
-          console.log('Password hash missing, attempting auto-migration');
-          const expected = user.courriel === 'bzinc@bzinc.ca' ? 'Jai.1.Mcd0' : 'Jai.du.Beau.Gaz0n';
-          if (body.password === expected) {
-            passwordHash = await bcryptjs.hash(expected, 10);
-            await pool.query('UPDATE users SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2', [passwordHash, user.id]);
-            console.log('Password hash created');
-          } else {
-            console.log('Password incorrect');
-            sendError(res, 'Courriel ou mot de passe incorrect', 401);
-            return;
-          }
+          console.log('  ❌ ÉCHEC: Aucun mot de passe défini pour cet utilisateur');
+          sendError(res, 'Aucun mot de passe défini pour cet utilisateur. Veuillez contacter un administrateur.', 401);
+          return;
+        }
+        
+        // Vérifier que le mot de passe est fourni
+        if (!body.password || body.password.trim() === '') {
+          console.log('  ❌ ÉCHEC: Mot de passe non fourni');
+          sendError(res, 'Le mot de passe est requis', 400);
+          return;
         }
 
         const isValid = await bcryptjs.compare(body.password, passwordHash);
-        console.log('Password valid:', isValid);
+        console.log('  🔑 Vérification mot de passe:', isValid ? '✓ VALIDE' : '✗ INVALIDE');
         
         if (!isValid) {
+          console.log('  ❌ ÉCHEC: Mot de passe incorrect');
           sendError(res, 'Courriel ou mot de passe incorrect', 401);
           return;
         }
         
         // Retourner l'utilisateur (sans password_hash)
         const { password_hash, ...userWithoutPassword } = user;
+        console.log('  ✅ SUCCÈS: Connexion réussie pour', user.courriel);
         sendJSON(res, { user: userWithoutPassword, token: 'dummy-token' });
       } catch (error) {
-        console.error('Erreur login:', error);
+        console.error('  ❌ ERREUR LOGIN:', error.message);
+        console.error('  Stack:', error.stack);
         sendError(res, 'Erreur serveur', 500);
       }
     }
@@ -159,19 +168,60 @@ const routes = {
   async '/api/users'(req, res, method) {
     if (method === 'GET') {
       try {
-        const result = await pool.query('SELECT id, prenom, nom, entreprise, courriel FROM users');
+        const result = await pool.query('SELECT id, prenom, nom, entreprise, courriel, role FROM users ORDER BY id');
         sendJSON(res, result.rows || []);
       } catch (error) {
         console.error('Erreur lors de la récupération des utilisateurs:', error);
         sendJSON(res, []); // Retourner un tableau vide au lieu d'une erreur 500
       }
     } else if (method === 'POST') {
-      const body = await parseBody(req);
-      const result = await pool.query(
-        'INSERT INTO users (prenom, nom, entreprise, courriel) VALUES ($1, $2, $3, $4) RETURNING id',
-        [body.prenom, body.nom, body.entreprise, body.courriel]
-      );
-      sendJSON(res, { id: result.rows[0].id, message: 'Utilisateur créé avec succès' }, 201);
+      try {
+        const body = await parseBody(req);
+        console.log('👤 Création d\'un nouvel utilisateur:', body.courriel);
+        
+        // Vérifier que le mot de passe est fourni
+        if (!body.password || body.password.trim() === '') {
+          console.log('  ❌ ERREUR: Mot de passe requis pour créer un utilisateur');
+          sendError(res, 'Le mot de passe est obligatoire', 400);
+          return;
+        }
+        
+        // Vérifier que l'email n'existe pas déjà
+        const existingUser = await pool.query('SELECT id FROM users WHERE courriel = $1', [body.courriel]);
+        if (existingUser.rows.length > 0) {
+          console.log('  ❌ ERREUR: Email déjà utilisé');
+          sendError(res, 'Cet email est déjà utilisé', 409);
+          return;
+        }
+        
+        // Hasher le mot de passe
+        const bcrypt = await import('bcryptjs');
+        const bcryptjs = bcrypt.default || bcrypt;
+        const passwordHash = await bcryptjs.hash(body.password, 10);
+        console.log('  ✅ Mot de passe hashé');
+        
+        // Créer l'utilisateur avec le mot de passe hashé
+        const result = await pool.query(
+          `INSERT INTO users (prenom, nom, entreprise, courriel, password_hash, role) 
+           VALUES ($1, $2, $3, $4, $5, $6) 
+           RETURNING id, prenom, nom, entreprise, courriel, role`,
+          [
+            body.prenom, 
+            body.nom, 
+            body.entreprise, 
+            body.courriel, 
+            passwordHash,
+            body.role || 'user'
+          ]
+        );
+        
+        console.log('  ✅ Utilisateur créé avec succès, ID:', result.rows[0].id);
+        const { password_hash, ...userWithoutPassword } = result.rows[0];
+        sendJSON(res, { ...userWithoutPassword, message: 'Utilisateur créé avec succès' }, 201);
+      } catch (error) {
+        console.error('  ❌ ERREUR création utilisateur:', error.message);
+        sendError(res, 'Erreur lors de la création de l\'utilisateur', 500);
+      }
     }
   },
 
@@ -185,12 +235,56 @@ const routes = {
       }
       sendJSON(res, result.rows[0]);
     } else if (method === 'PUT') {
-      const body = await parseBody(req);
-      await pool.query(
-        'UPDATE users SET prenom = $1, nom = $2, entreprise = $3, courriel = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5',
-        [body.prenom, body.nom, body.entreprise, body.courriel, id]
-      );
-      sendJSON(res, { message: 'Utilisateur mis à jour avec succès' });
+      try {
+        const body = await parseBody(req);
+        console.log('👤 Mise à jour de l\'utilisateur ID:', id);
+        
+        // Si un nouveau mot de passe est fourni, le hasher
+        let updateQuery;
+        let queryParams;
+        
+        if (body.password && body.password.trim() !== '') {
+          console.log('  🔑 Mise à jour du mot de passe');
+          const bcrypt = await import('bcryptjs');
+          const bcryptjs = bcrypt.default || bcrypt;
+          const passwordHash = await bcryptjs.hash(body.password, 10);
+          
+          updateQuery = `UPDATE users 
+                        SET prenom = $1, nom = $2, entreprise = $3, courriel = $4, 
+                            password_hash = $5, role = $6, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = $7`;
+          queryParams = [
+            body.prenom, 
+            body.nom, 
+            body.entreprise, 
+            body.courriel, 
+            passwordHash,
+            body.role || 'user',
+            id
+          ];
+        } else {
+          // Mise à jour sans changer le mot de passe
+          updateQuery = `UPDATE users 
+                        SET prenom = $1, nom = $2, entreprise = $3, courriel = $4, 
+                            role = $5, updated_at = CURRENT_TIMESTAMP 
+                        WHERE id = $6`;
+          queryParams = [
+            body.prenom, 
+            body.nom, 
+            body.entreprise, 
+            body.courriel,
+            body.role || 'user',
+            id
+          ];
+        }
+        
+        await pool.query(updateQuery, queryParams);
+        console.log('  ✅ Utilisateur mis à jour avec succès');
+        sendJSON(res, { message: 'Utilisateur mis à jour avec succès' });
+      } catch (error) {
+        console.error('  ❌ ERREUR mise à jour utilisateur:', error.message);
+        sendError(res, 'Erreur lors de la mise à jour de l\'utilisateur', 500);
+      }
     } else if (method === 'DELETE') {
       await pool.query('DELETE FROM users WHERE id = $1', [id]);
       sendJSON(res, { message: 'Utilisateur supprimé avec succès' });
@@ -534,6 +628,15 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsedUrl.pathname;
   const method = req.method;
 
+  // LOG: Afficher chaque requête entrante
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] ${method} ${pathname}`);
+  
+  // Log les paramètres de requête si présents
+  if (Object.keys(parsedUrl.query).length > 0) {
+    console.log(`  Query params:`, parsedUrl.query);
+  }
+
   // Headers de sécurité pour HTTPS
   if (process.env.NODE_ENV === 'production') {
     res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
@@ -627,14 +730,22 @@ const server = http.createServer(async (req, res) => {
           }
         });
       }
+      console.log(`  → Route trouvée: ${routeKey}`);
       await routes[routeKey](req, res, method, params, parsedUrl.query);
     } else {
+      console.log(`  → Route NON trouvée (404)`);
       sendError(res, 'Route non trouvée', 404);
     }
   } catch (error) {
-    console.error('Erreur:', error);
+    console.error(`  ❌ ERREUR:`, error.message);
+    console.error('  Stack:', error.stack);
     sendError(res, error.message, 500);
   }
+  
+  // Log la réponse après qu'elle soit envoyée
+  res.on('finish', () => {
+    console.log(`  ✓ Réponse: ${res.statusCode} ${res.statusMessage || ''}`);
+  });
 });
 
 // Démarrer le serveur (même si la DB échoue, pour que le healthcheck fonctionne)
@@ -652,9 +763,18 @@ async function startServer() {
   
   server.listen(PORT, () => {
     serverStarted = true;
-    console.log(`🚀 Serveur ChatApps démarré sur le port ${PORT}`);
-    console.log(`📊 API disponible sur http://localhost:${PORT}/api`);
-    console.log(`💾 Base de données: ${process.env.DATABASE_URL ? 'PostgreSQL (Railway)' : 'Locale'}`);
+    console.log('');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log(`🚀 SERVEUR CHATAPPS DÉMARRÉ`);
+    console.log(`   Port: ${PORT}`);
+    console.log(`   API: http://localhost:${PORT}/api`);
+    console.log(`   Healthcheck: http://localhost:${PORT}/health`);
+    console.log(`   Base de données: ${process.env.DATABASE_URL ? 'PostgreSQL (Railway)' : 'Locale'}`);
+    console.log(`   DB Initialisée: ${dbInitialized ? '✅ OUI' : '⚠️ NON'}`);
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('');
+    console.log('📝 Les logs de requête seront affichés ci-dessous:');
+    console.log('');
   });
 }
 
