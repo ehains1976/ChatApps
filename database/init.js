@@ -139,6 +139,15 @@ export async function initializeDatabase() {
       });
     }
     
+    // Supprimer l'utilisateur vertdure s'il existe (n'est plus nécessaire)
+    try {
+      await pool.query('DELETE FROM users WHERE courriel = $1', ['vertdure@vertdure.com']);
+      console.log('🗑️ Utilisateur vertdure supprimé');
+    } catch (deleteError) {
+      // Ignorer si l'utilisateur n'existe pas
+      console.log('ℹ️ Utilisateur vertdure non trouvé (déjà supprimé ou n\'existe pas)');
+    }
+    
     // Créer les utilisateurs admin s'ils n'existent pas
     const adminUsers = [
       { 
@@ -147,14 +156,6 @@ export async function initializeDatabase() {
         entreprise: 'BZ Inc', 
         courriel: 'bzinc@bzinc.ca', 
         password: 'Jai.1.Mcd0',
-        role: 'admin'
-      },
-      { 
-        prenom: 'Vert', 
-        nom: 'Dure', 
-        entreprise: 'VertDure', 
-        courriel: 'vertdure@vertdure.com', 
-        password: 'Jai.du.Beau.Gaz0n',
         role: 'admin'
       }
     ];
