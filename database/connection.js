@@ -148,7 +148,18 @@ if (isRailwayProd) {
 }
 
 // Déterminer si on est en production (Railway) ou développement local
-const isLocalhost = connectionString && (connectionString.includes('localhost') || connectionString.includes('127.0.0.1'));
+const isLocalhost = connectionString && (connectionString.includes('localhost') || connectionString.includes('127.0.0.1') || connectionString.includes('::1'));
+
+// Vérification CRITIQUE: En production Railway, ne JAMAIS utiliser localhost
+const isRailwayProdFinal = !!process.env.RAILWAY_ENVIRONMENT || process.env.NODE_ENV === 'production';
+if (isRailwayProdFinal && isLocalhost) {
+  console.error('❌ ERREUR CRITIQUE: Tentative de connexion à localhost en production Railway!');
+  console.error('❌ connectionString:', connectionString ? connectionString.replace(/:[^:@]+@/, ':****@') : 'NULL');
+  console.error('❌ RAILWAY_ENVIRONMENT:', process.env.RAILWAY_ENVIRONMENT || 'NON DÉFINI');
+  console.error('❌ NODE_ENV:', process.env.NODE_ENV || 'NON DÉFINI');
+  console.error('❌ DATABASE_URL doit être définie dans Railway Dashboard → Service → Variables');
+  throw new Error('Configuration PostgreSQL invalide: localhost détecté en production Railway. Définissez DATABASE_URL.');
+}
 
 const pool = new Pool({
   connectionString: connectionString,
