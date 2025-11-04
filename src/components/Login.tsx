@@ -15,13 +15,31 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Validation stricte côté client
+    if (!email || email.trim() === '') {
+      setError('Le courriel est requis');
+      return;
+    }
+    
+    if (!password || password.trim() === '') {
+      setError('Le mot de passe est requis');
+      return;
+    }
+    
+    // Validation minimale de longueur du mot de passe
+    if (password.length < 1) {
+      setError('Le mot de passe est requis');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: email.trim(), password: password })
       });
 
       const data = await response.json();
@@ -99,6 +117,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={1}
+              autoComplete="current-password"
               style={{
                 width: '100%',
                 padding: '0.75rem 1rem',

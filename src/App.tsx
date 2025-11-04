@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import DashboardPage from './pages/DashboardPage';
 import TasksPage from './pages/TasksPage';
@@ -9,18 +9,47 @@ import OperationsLogPage from './pages/OperationsLogPage';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Calendar from './components/Calendar';
+import Login from './components/Login';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [currentProjectId, setCurrentProjectId] = useState<number | null>(null);
-  // Utilisateur par défaut (sans authentification)
-  const [user] = useState<any>({
-    id: 1,
-    prenom: 'Admin',
-    nom: 'Local',
-    courriel: 'admin@local',
-    role: 'admin'
-  });
+  
+  // Vérifier si un utilisateur est connecté (depuis localStorage)
+  const [user, setUser] = useState<any>(null);
+  
+  // Charger l'utilisateur depuis localStorage au démarrage
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    if (savedUser) {
+      try {
+        setUser(JSON.parse(savedUser));
+      } catch (error) {
+        console.error('Erreur lors du chargement de l\'utilisateur:', error);
+        localStorage.removeItem('user');
+        localStorage.removeItem('token');
+      }
+    }
+  }, []);
+  
+  // Gérer la connexion
+  const handleLogin = (loggedInUser: any) => {
+    setUser(loggedInUser);
+    localStorage.setItem('user', JSON.stringify(loggedInUser));
+  };
+  
+  // Gérer la déconnexion
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    localStorage.removeItem('token');
+    setCurrentPage('dashboard');
+  };
+  
+  // Si aucun utilisateur n'est connecté, afficher le formulaire de connexion
+  if (!user) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   const navigateToProject = (projectId: number) => {
     setCurrentProjectId(projectId);
@@ -61,7 +90,7 @@ function App() {
         {/* Main Content */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header */}
-          <Header user={user} onLogout={() => {}} />
+          <Header user={user} onLogout={handleLogout} />
           
           {/* Page Content */}
           <motion.main 

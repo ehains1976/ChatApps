@@ -123,9 +123,21 @@ const routes = {
           return;
         }
         
-        // Vérifier que le mot de passe est fourni
-        if (!body.password || body.password.trim() === '') {
-          console.log('  ❌ ÉCHEC: Mot de passe non fourni');
+        // Vérifier que le mot de passe est fourni - VALIDATION STRICTE
+        if (!body.password) {
+          console.log('  ❌ ÉCHEC: Mot de passe manquant (undefined/null)');
+          sendError(res, 'Le mot de passe est requis', 400);
+          return;
+        }
+        
+        if (typeof body.password !== 'string') {
+          console.log('  ❌ ÉCHEC: Mot de passe invalide (type incorrect)');
+          sendError(res, 'Le mot de passe est requis', 400);
+          return;
+        }
+        
+        if (body.password.trim() === '' || body.password.length === 0) {
+          console.log('  ❌ ÉCHEC: Mot de passe vide');
           sendError(res, 'Le mot de passe est requis', 400);
           return;
         }
