@@ -90,9 +90,54 @@ export async function initializeDatabase() {
     const schema = fs.readFileSync(schemaPath, 'utf8');
     console.log('📄 Exécution du schéma SQL...');
     
-    // Exécuter le schéma en une seule transaction
-    await pool.query(schema);
-    console.log('✅ Schéma SQL exécuté avec succès');
+    // Diviser le schéma en commandes individuelles et les exécuter une par une
+    // Cela permet de mieux gérer les erreurs et de voir exactement quelle commande échoue
+    const commands = schema
+      .split(';')
+      .map(cmd => cmd.trim())
+      .filter(cmd => cmd.length > 0 && !cmd.startsWith('--'));
+    
+    console.log(`📋 ${commands.length} commande(s) SQL à exécuter`);
+    
+    for (let i = 0; i < commands.length; i++) {
+      const command = commands[i];
+      if (command.length > 0) {
+        try {
+          // Exécuter chaque commande séparément
+          await pool.query(command);
+          // Extraire le nom de la table si c'est un CREATE TABLE
+          const tableMatch = command.match(/CREATE TABLE (?:IF NOT EXISTS )?(\w+)/i);
+          if (tableMatch) {
+            console.log(`  ✅ Table créée: ${tableMatch[1]}`);
+          }
+        } catch (cmdError) {
+          // Ignorer les erreurs "already exists" pour les index
+          if (!cmdError.message.includes('already exists') && !cmdError.message.includes('duplicate key')) {
+            console.error(`  ⚠️ Erreur lors de l'exécution de la commande ${i + 1}:`, cmdError.message);
+            console.error(`  Commande: ${command.substring(0, 100)}...`);
+          }
+        }
+      }
+    }
+    
+    console.log('✅ Schéma SQL exécuté');
+    
+    // Vérifier que les tables existent maintenant
+    const tablesCheck = await pool.query(`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      ORDER BY table_name
+    `);
+    console.log(`📊 Tables vérifiées dans la base: ${tablesCheck.rows.length} table(s)`);
+    if (tablesCheck.rows.length === 0) {
+      console.error('❌ ATTENTION: Aucune table trouvée dans la base de données!');
+      throw new Error('Les tables n\'ont pas été créées correctement');
+    } else {
+      tablesCheck.rows.forEach(row => {
+        console.log(`   - ${row.table_name}`);
+      });
+    }
     
     // Créer les utilisateurs admin s'ils n'existent pas
     const adminUsers = [
@@ -174,15 +219,6 @@ export async function initializeDatabase() {
     });
     
     console.log('✅ Base de données initialisée avec succès!');
-    
-    // Vérifier que les tables existent
-    const tablesCheck = await pool.query(`
-      SELECT table_name 
-      FROM information_schema.tables 
-      WHERE table_schema = 'public'
-      ORDER BY table_name
-    `);
-    console.log('📊 Tables créées:', tablesCheck.rows.map(r => r.table_name).join(', '));
     
   } catch (error) {
     console.error('❌ Erreur lors de l\'initialisation:', error);
