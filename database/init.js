@@ -4,13 +4,73 @@ import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import pkg from 'pg';
+const { Pool: PoolClass } = pkg;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Fonction pour créer la base de données si elle n'existe pas
+async function ensureDatabaseExists() {
+  try {
+    // Extraire les infos de connexion depuis DATABASE_URL
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.log('⚠️ DATABASE_URL non trouvée, on suppose que la base existe');
+      return;
+    }
+
+    // Parser l'URL pour extraire le nom de la base
+    const url = new URL(dbUrl.replace('postgresql://', 'http://'));
+    const targetDb = url.pathname.replace('/', '');
+    
+    if (!targetDb || targetDb === 'postgres') {
+      console.log('⚠️ Base de données cible non spécifiée ou "postgres", on suppose qu\'elle existe');
+      return;
+    }
+
+    console.log(`🔍 Vérification de l'existence de la base de données: ${targetDb}`);
+    
+    // Construire une URL pour se connecter à la base 'postgres' par défaut
+    const defaultDbUrl = dbUrl.replace(`/${targetDb}`, '/postgres');
+    
+    // Créer un pool temporaire pour se connecter à 'postgres'
+    const adminPool = new PoolClass({
+      connectionString: defaultDbUrl,
+      ssl: dbUrl.includes('railway') || dbUrl.includes('rlwy.net') ? { rejectUnauthorized: false } : false,
+    });
+
+    try {
+      // Vérifier si la base existe
+      const checkResult = await adminPool.query(
+        `SELECT 1 FROM pg_database WHERE datname = $1`,
+        [targetDb]
+      );
+
+      if (checkResult.rows.length === 0) {
+        console.log(`📦 Création de la base de données ${targetDb}...`);
+        // Créer la base de données
+        await adminPool.query(`CREATE DATABASE "${targetDb}"`);
+        console.log(`✅ Base de données ${targetDb} créée avec succès!`);
+      } else {
+        console.log(`✅ Base de données ${targetDb} existe déjà`);
+      }
+    } finally {
+      await adminPool.end();
+    }
+  } catch (error) {
+    // Si on ne peut pas créer la base (peut-être qu'elle existe déjà ou permissions insuffisantes)
+    console.warn('⚠️ Impossible de vérifier/créer la base de données:', error.message);
+    console.warn('⚠️ On continue quand même, la base peut déjà exister');
+  }
+}
+
 export async function initializeDatabase() {
   try {
     console.log('🔄 Initialisation de la base de données...');
+    
+    // S'assurer que la base de données existe
+    await ensureDatabaseExists();
     
     // Test de connexion d'abord
     try {
