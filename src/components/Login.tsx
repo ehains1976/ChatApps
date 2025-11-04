@@ -59,7 +59,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #059669 0%, #047857 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #475569 0%, #334155 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -74,8 +74,22 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+            <div style={{ 
+              width: '48px', 
+              height: '48px', 
+              background: 'linear-gradient(135deg, #475569 0%, #334155 100%)', 
+              borderRadius: '12px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(71, 85, 105, 0.3)'
+            }}>
+              <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.5rem' }}>C</span>
+            </div>
+          </div>
           <h1 style={{ fontSize: '2rem', fontWeight: 'bold', color: '#0f172a', marginBottom: '0.5rem' }}>
-            VertProjet
+            ChatApps
           </h1>
           <p style={{ color: '#64748b', fontSize: '0.9rem' }}>
             Connectez-vous pour continuer
@@ -102,7 +116,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 outline: 'none',
                 transition: 'all 0.2s'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#059669'}
+              onFocus={(e) => e.target.style.borderColor = '#475569'}
               onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
             />
           </div>
@@ -128,7 +142,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 outline: 'none',
                 transition: 'all 0.2s'
               }}
-              onFocus={(e) => e.target.style.borderColor = '#059669'}
+              onFocus={(e) => e.target.style.borderColor = '#475569'}
               onBlur={(e) => e.target.style.borderColor = '#cbd5e1'}
             />
           </div>
@@ -145,7 +159,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             style={{
               width: '100%',
               padding: '0.875rem',
-              background: isLoading ? '#94a3b8' : '#059669',
+              background: isLoading ? '#94a3b8' : '#475569',
               color: 'white',
               border: 'none',
               borderRadius: '8px',
@@ -156,13 +170,14 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               alignItems: 'center',
               justifyContent: 'center',
               gap: '0.5rem',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              boxShadow: isLoading ? 'none' : '0 4px 12px rgba(71, 85, 105, 0.3)'
             }}
             onMouseEnter={(e) => {
-              if (!isLoading) e.currentTarget.style.background = '#047857';
+              if (!isLoading) e.currentTarget.style.background = '#334155';
             }}
             onMouseLeave={(e) => {
-              if (!isLoading) e.currentTarget.style.background = '#059669';
+              if (!isLoading) e.currentTarget.style.background = '#475569';
             }}
           >
             {isLoading ? (
