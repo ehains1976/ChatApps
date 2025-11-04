@@ -130,41 +130,48 @@ export async function initializeDatabase() {
       END$$;
     `);
 
+    // Créer/garantir l'existence des utilisateurs admin
+    console.log('👥 Création/Vérification des utilisateurs admin...');
     for (const user of adminUsers) {
-      // Supporter l'ancien courriel bzinc@bzinc.com en le migrant vers .ca
-      const possibleEmails = user.courriel === 'bzinc@bzinc.ca' ? ['bzinc@bzinc.ca', 'bzinc@bzinc.com'] : [user.courriel];
-
-      const result = await pool.query(
-        'SELECT id, courriel, password_hash FROM users WHERE courriel = ANY($1)',
-        [possibleEmails]
-      );
-
-      const passwordHash = await bcrypt.hash(user.password, 10);
-
-      if (result.rows.length === 0) {
-        // Créer l'utilisateur
-        await pool.query(
+      try {
+        const passwordHash = await bcrypt.hash(user.password, 10);
+        
+        // Utiliser INSERT ... ON CONFLICT pour garantir que l'utilisateur existe toujours
+        // Cela créera l'utilisateur s'il n'existe pas, ou mettra à jour le mot de passe et le rôle s'il existe
+        const insertResult = await pool.query(
           `INSERT INTO users (prenom, nom, entreprise, courriel, password_hash, role) 
-           VALUES ($1, $2, $3, $4, $5, $6)`,
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (courriel) 
+           DO UPDATE SET 
+             password_hash = EXCLUDED.password_hash,
+             role = EXCLUDED.role,
+             prenom = EXCLUDED.prenom,
+             nom = EXCLUDED.nom,
+             entreprise = EXCLUDED.entreprise,
+             updated_at = CURRENT_TIMESTAMP
+           RETURNING id, courriel, role`,
           [user.prenom, user.nom, user.entreprise, user.courriel, passwordHash, user.role]
         );
-        console.log(`✅ Utilisateur admin créé: ${user.courriel}`);
-      } else {
-        const existing = result.rows[0];
-        // Mettre à jour courriel s'il est ancien et/ou mot de passe si manquant
-        const newEmail = user.courriel;
-        const needsEmailUpdate = existing.courriel !== newEmail;
-        const needsPasswordUpdate = !existing.password_hash || existing.password_hash.length < 20;
-
-        if (needsEmailUpdate || needsPasswordUpdate) {
-          await pool.query(
-            `UPDATE users SET courriel = $1, password_hash = $2, role = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`,
-            [newEmail, needsPasswordUpdate ? passwordHash : existing.password_hash, user.role, existing.id]
-          );
-          console.log(`🔄 Utilisateur admin mis à jour: ${newEmail}`);
+        
+        if (insertResult.rows.length > 0) {
+          const created = insertResult.rows[0];
+          console.log(`✅ Utilisateur admin créé/mis à jour: ${created.courriel} (ID: ${created.id}, Role: ${created.role})`);
         }
+      } catch (userError) {
+        console.error(`❌ Erreur lors de la création de l'utilisateur ${user.courriel}:`, userError.message);
+        // Continuer avec le prochain utilisateur même en cas d'erreur
       }
     }
+    
+    // Vérifier que les utilisateurs admin existent
+    const adminCheck = await pool.query(
+      'SELECT id, prenom, nom, courriel, role FROM users WHERE courriel = ANY($1)',
+      [adminUsers.map(u => u.courriel)]
+    );
+    console.log(`📋 Utilisateurs admin vérifiés: ${adminCheck.rows.length} trouvé(s)`);
+    adminCheck.rows.forEach(admin => {
+      console.log(`   - ${admin.courriel} (${admin.prenom} ${admin.nom}, Role: ${admin.role})`);
+    });
     
     console.log('✅ Base de données initialisée avec succès!');
     
